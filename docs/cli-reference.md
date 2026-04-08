@@ -16,6 +16,9 @@ job-assets submit output/<company>/<role-slug> [--submit]
 job-assets batch [--dry-run] [--max-parallel N] [--provider gemini|gemini-flash|claude|codex|openai]
 job-assets parallel [--dry-run] [--build-only] [--max-parallel N] [--provider gemini|gemini-flash|claude|codex|openai]
 job-assets profile [show|path]
+job-assets settings show
+job-assets settings import <master_resume|work_stories|candidate_context|application_profile> [--file PATH|--url URL|--text TEXT]
+job-assets settings set [--default-provider ...] [--openai-api-key ...] [--gemini-api-key ...]
 job-assets notion-sync <target> [--wait-for-email N]
 
 # Provider-specific wrappers
@@ -43,6 +46,7 @@ Command discovery:
 - When changing the Codex non-interactive invocation, validate the generated command against the installed CLI surface from both `codex --help` and `codex exec --help`. Codex has moved approval/sandbox/search flags between the top-level command and `exec` across versions, and provider tests alone are not enough if the live CLI no longer accepts the built argv.
 - When a provider subtask is asked to produce `resume_content.json` or `cover_letter_text.txt`, it must read the prepared inputs and write those files directly. Do not recurse back into `job-assets`, `apply.sh`, `scripts/run_pipeline.py`, `scripts/job_assets_pipeline.py`, or other repo entrypoints from inside the provider call.
 - Use bare `job-assets <jd_source>` for end-to-end single-job (assets + submit); `job-assets apply ...` for assets only.
+- `job-assets settings ...` is the CLI view of the same onboarding/settings backend used by the web UI, TUI, and packaged app runtime.
 
 ## Batch & Parallel
 

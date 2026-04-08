@@ -126,9 +126,9 @@ Before generating files, verify: compelling opening hook | >=1 specific research
 1. **Save the cover letter text** to `output/<company>/<role-slug>/content/cover_letter_text.txt` (just the letter body, starting with "Dear ...")
 2. **Run the builder:**
    ```bash
-   uv run scripts/build_cover_letter.py output/<company>/<role-slug>/content/cover_letter_text.txt -o "output/<company>/<role-slug>/documents/Jerrison Li Cover Letter - <Company>.docx"
+   uv run scripts/build_cover_letter.py output/<company>/<role-slug>/content/cover_letter_text.txt -o "output/<company>/<role-slug>/documents/<Candidate Name> Cover Letter - <Company>.docx"
    ```
-   Example: `uv run scripts/build_cover_letter.py output/samsara/agent-platform-pm/content/cover_letter_text.txt -o "output/samsara/agent-platform-pm/documents/Jerrison Li Cover Letter - Samsara.docx"`
+   Example: `uv run scripts/build_cover_letter.py output/samsara/agent-platform-pm/content/cover_letter_text.txt -o "output/samsara/agent-platform-pm/documents/<Candidate Name> Cover Letter - Samsara.docx"`
 
    The builder produces `.docx`, `.txt`, and `.pdf` files with consistent formatting (Calibri 11pt, US Letter, 1in margins, candidate name and contact header).
 

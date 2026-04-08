@@ -19,7 +19,7 @@ uv run scripts/run_pipeline.py <jd_source>
 Where `<jd_source>` is a file path or URL. Company and role slugs are **auto-detected** from the parsed JD (company name + title). Override with `-c <company>` and/or `-r <role-slug>` if needed. For Greenhouse URLs, including company-hosted career pages that carry `gh_jid`, the API is called directly for better parsing. For Dover `app.dover.com/apply/...` URLs, the public application API is used directly for JD extraction so the deterministic pipeline avoids the Cloudflare-gated HTML shell. For company-hosted Ashby career pages that carry `ashby_jid`, the wrapper URL is resolved to the canonical `jobs.ashbyhq.com` posting before scraping and submit automation. Reject host-derived Ashby shell URLs whose `window.__appData` has no real `posting` payload, and fall back to the iframe/embed-discovered hosted-jobs slug in that case. Direct Ashby `jobs.ashbyhq.com/.../application` URLs are also canonicalized back to the posting URL before scrape so the deterministic pipeline reads the full posting instead of the thinner application shell, and thin same-site application shells should trigger a same-site search for the fuller JD page before extraction fails.
 
 The orchestrator:
-1. **Syncs `work_stories.md` and `candidate_context.md`** from Google Docs (hash-check, update only if changed). Use `--skip-sync` to skip.
+1. **Syncs `work_stories.md` and `candidate_context.md`** from configured remote sources when those URLs are set (hash-check, update only if changed). Use `--skip-sync` to skip.
 2. **Scrapes the URL** if `<jd_source>` starts with `http` (Greenhouse and Dover APIs preferred when applicable, fallback to HTML scraping)
 3. **Parses the JD** → `jd_parsed.json` (title, company, level, responsibilities, qualifications, keywords, signals)
 4. **Auto-detects output directory** from company name and title → `output/<company>/<role-slug>/`
@@ -83,7 +83,7 @@ uv run scripts/optimize_page_break.py output/<company>/<role-slug>/content/resum
 Then run the deterministic builder:
 
 ```bash
-uv run scripts/build_resume.py output/<company>/<role-slug>/content/resume_content.json -o "output/<company>/<role-slug>/documents/Jerrison Li Resume - <Company>.docx"
+uv run scripts/build_resume.py output/<company>/<role-slug>/content/resume_content.json -o "output/<company>/<role-slug>/documents/Candidate Name Resume - <Company>.docx"
 ```
 
 The builder handles all formatting, produces both `.docx` and `.pdf`, and **auto-validates** the PDF (page count = 2, candidate name present). Use `--dry-run` to skip PDF conversion for faster iteration.
@@ -132,7 +132,7 @@ You may **NOT** change:
 - Any formatting — all formatting is controlled by the deterministic builder script
 
 Resume header note:
-For roles whose listed locations include California, keep `San Francisco, CA` at the start of the contact line. For roles outside California, omit that city/state prefix so the line starts with `jerrisonli@gmail.com`.
+For roles whose listed locations include California, keep `San Francisco, CA` at the start of the contact line. For roles outside California, omit that city/state prefix so the line starts with `candidate@example.com`.
 
 Submit runtime note:
 For browser-based job-board submits, prefer the persistent local Chrome-backed Playwright profile at `~/.job-assets/playwright-submit-profile` before falling back to bundled Chromium. This reduces avoidable CAPTCHA challenges from fresh ephemeral browser sessions. `JOB_ASSETS_SUBMIT_BROWSER_PROFILE_DIR` overrides the profile path and `JOB_ASSETS_SUBMIT_SLOW_MO_MS` overrides headed interaction pacing. On macOS, if the persistent-profile launch aborts early, retry once without persistence before failing the local-browser path, and avoid redundant same-browser fallbacks that would immediately relaunch the same Chrome app under a different label. On non-macOS persistent-profile launches, override inherited `HOME` and `XDG_*` paths to the submit-profile home so CI and headless Linux runs stay isolated from the runner's global browser state.
@@ -167,7 +167,7 @@ Every position block (company + title + location/dates + all bullets) must appea
 
 **Optimize for interview conversion. Be aggressive, not generic.**
 
-- **Cherry-pick from the bullet pool.** The master resume is a menu — select the combination that makes the strongest case for this specific role. Don't default to the Google Doc's current selection.
+- **Cherry-pick from the bullet pool.** The master resume is a menu — select the combination that makes the strongest case for this specific role. Don't default to whatever a previous rendered document happened to include.
 - **Mirror the JD's language.** If the posting says "cross-functional stakeholder alignment," use that phrase — don't say "worked with other teams."
 - **Lead with impact.** Every bullet: strong action verb → what you did → quantified result.
 - **Keep the summary sharp, but sufficient.** It must communicate the candidate's fit clearly before you optimize for brevity. Make it as tight as possible without dropping important signal, and never let it turn into a padded paragraph that repeats the bullets.
@@ -183,8 +183,8 @@ Every position block (company + title + location/dates + all bullets) must appea
 ## Resume Output Requirements
 
 ### Deliver:
-1. The `.docx` file — named `Jerrison Li Resume - <Company>.docx`
-2. The `.pdf` file — named `Jerrison Li Resume - <Company>.pdf`
+1. The `.docx` file — named `Candidate Name Resume - <Company>.docx`
+2. The `.pdf` file — named `Candidate Name Resume - <Company>.pdf`
 
 ### Then provide a brief changelog:
 - Summary: rewritten / removed / unchanged
@@ -200,7 +200,7 @@ Every position block (company + title + location/dates + all bullets) must appea
 
 ## Resume Edge Cases
 
-- **Google Doc not accessible**: Ask user to check sharing permissions (must be viewable via link)
+- **Remote source not accessible**: Ask the user to check permissions or provide a different public source link
 - **Job link behind login wall**: Ask user to paste the job description text
 - **Resume currently 1 page**: Expand bullets with richer detail from the master resume pool to fill 2 pages — do not fabricate
 - **Resume currently 3+ pages**: Aggressively condense — delete low-relevance bullets first
