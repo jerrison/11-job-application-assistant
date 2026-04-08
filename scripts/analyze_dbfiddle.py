@@ -112,7 +112,7 @@ cur.executemany(
 # === Load transactions from the extracted text file ===
 import re
 
-tx_file = "/Users/jerrison/.claude/projects/-Users-jerrison-00-projects-11-job-application-material-creation/4a599859-eb74-48b0-abb8-10c0144e51e2/tool-results/bazpr9if5.txt"
+tx_file = "/Users/candidate/.claude/projects/-Users-candidate-00-projects-11-job-application-material-creation/4a599859-eb74-48b0-abb8-10c0144e51e2/tool-results/bazpr9if5.txt"
 
 with open(tx_file) as f:
     raw = f.read()

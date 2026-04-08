@@ -27,7 +27,7 @@ class OutputLayoutTests(unittest.TestCase):
             (out_dir / "jd_parsed.json").write_text("{}", encoding="utf-8")
             (out_dir / "resume_content.json").write_text("{}", encoding="utf-8")
             (out_dir / "cover_letter_text.txt").write_text("Dear Hiring Team,", encoding="utf-8")
-            (out_dir / "Jerrison Li Resume - Acme.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Acme.pdf").write_bytes(b"%PDF-1.4")
             (out_dir / "application_answers.json").write_text("{}", encoding="utf-8")
             (out_dir / "application_answers_fallback_raw.txt").write_text("fallback", encoding="utf-8")
             (out_dir / "pending_user_input.json").write_text("{}", encoding="utf-8")
@@ -40,7 +40,7 @@ class OutputLayoutTests(unittest.TestCase):
             self.assertTrue((out_dir / "content" / "jd_parsed.json").exists())
             self.assertTrue((out_dir / "content" / "resume_content.json").exists())
             self.assertTrue((out_dir / "content" / "cover_letter_text.txt").exists())
-            self.assertTrue((out_dir / "documents" / "Jerrison Li Resume - Acme.pdf").exists())
+            self.assertTrue((out_dir / "documents" / "Candidate Name Resume - Acme.pdf").exists())
             self.assertTrue((out_dir / "submit" / "application_answers.json").exists())
             self.assertTrue((out_dir / "submit" / "application_answers_fallback_raw.txt").exists())
             self.assertTrue((out_dir / "submit" / "pending_user_input.json").exists())
@@ -53,13 +53,13 @@ class OutputLayoutTests(unittest.TestCase):
             out_dir = Path(tmpdir)
             layout.ensure_role_output_dirs(out_dir)
             (out_dir / "content" / "resume_content.json").write_text("{}", encoding="utf-8")
-            (out_dir / "Jerrison Li Resume - Acme.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Acme.pdf").write_bytes(b"%PDF-1.4")
 
             resume_content = layout.find_role_file(out_dir, "resume_content.json", bucket="content")
             legacy_resume = layout.glob_role_files(out_dir, "*Resume*.pdf", bucket="documents")
 
             self.assertEqual(resume_content, out_dir / "content" / "resume_content.json")
-            self.assertEqual(legacy_resume, [out_dir / "Jerrison Li Resume - Acme.pdf"])
+            self.assertEqual(legacy_resume, [out_dir / "Candidate Name Resume - Acme.pdf"])
 
     def test_create_reapply_submit_dir_sets_new_active_submit_directory(self):
         layout = load_module("output_layout", "scripts/output_layout.py")

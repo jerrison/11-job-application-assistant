@@ -65,11 +65,11 @@ class AssetPipelineStateTests(unittest.TestCase):
             (content_dir / "cover_letter_text.txt").write_text("cover letter", encoding="utf-8")
             company = "Acme"
             for name in (
-                f"Jerrison Li Resume - {company}.docx",
-                f"Jerrison Li Resume - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.docx",
-                f"Jerrison Li Cover Letter - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.txt",
+                f"Candidate Name Resume - {company}.docx",
+                f"Candidate Name Resume - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.docx",
+                f"Candidate Name Cover Letter - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.txt",
             ):
                 (documents_dir / name).write_text(name, encoding="utf-8")
 
@@ -98,11 +98,11 @@ class AssetPipelineStateTests(unittest.TestCase):
             (content_dir / "cover_letter_text.txt").write_text("cover letter", encoding="utf-8")
             company = "Acme"
             for name in (
-                f"Jerrison Li Resume - {company}.docx",
-                f"Jerrison Li Resume - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.docx",
-                f"Jerrison Li Cover Letter - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.txt",
+                f"Candidate Name Resume - {company}.docx",
+                f"Candidate Name Resume - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.docx",
+                f"Candidate Name Cover Letter - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.txt",
             ):
                 (documents_dir / name).write_text(name, encoding="utf-8")
             state.record_build(out_dir, company)
@@ -131,11 +131,11 @@ class AssetPipelineStateTests(unittest.TestCase):
             (content_dir / "cover_letter_text.txt").write_text("cover letter", encoding="utf-8")
             company = "Acme"
             for name in (
-                f"Jerrison Li Resume - {company}.docx",
-                f"Jerrison Li Resume - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.docx",
-                f"Jerrison Li Cover Letter - {company}.pdf",
-                f"Jerrison Li Cover Letter - {company}.txt",
+                f"Candidate Name Resume - {company}.docx",
+                f"Candidate Name Resume - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.docx",
+                f"Candidate Name Cover Letter - {company}.pdf",
+                f"Candidate Name Cover Letter - {company}.txt",
             ):
                 (documents_dir / name).write_text(name, encoding="utf-8")
 

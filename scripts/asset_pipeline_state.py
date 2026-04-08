@@ -14,6 +14,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(SCRIPT_DIR) not in __import__("sys").path:
     __import__("sys").path.insert(0, str(SCRIPT_DIR))
 
+from candidate_runtime import document_filename
 from enforce_resume_policy import resume_meets_minimums
 from output_layout import migrate_role_output_layout, role_content_path, role_documents_path
 
@@ -58,11 +59,11 @@ def _document_files(out_dir: str | Path, company_proper: str) -> dict[str, Path]
     out_dir = Path(out_dir)
     migrate_role_output_layout(out_dir)
     return {
-        "resume_docx": role_documents_path(out_dir, f"Jerrison Li Resume - {company_proper}.docx"),
-        "resume_pdf": role_documents_path(out_dir, f"Jerrison Li Resume - {company_proper}.pdf"),
-        "cover_letter_docx": role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_proper}.docx"),
-        "cover_letter_pdf": role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_proper}.pdf"),
-        "cover_letter_txt": role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_proper}.txt"),
+        "resume_docx": role_documents_path(out_dir, document_filename("Resume", company_proper, ".docx")),
+        "resume_pdf": role_documents_path(out_dir, document_filename("Resume", company_proper, ".pdf")),
+        "cover_letter_docx": role_documents_path(out_dir, document_filename("Cover Letter", company_proper, ".docx")),
+        "cover_letter_pdf": role_documents_path(out_dir, document_filename("Cover Letter", company_proper, ".pdf")),
+        "cover_letter_txt": role_documents_path(out_dir, document_filename("Cover Letter", company_proper, ".txt")),
     }
 
 

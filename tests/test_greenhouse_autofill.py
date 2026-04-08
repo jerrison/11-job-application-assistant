@@ -1182,10 +1182,10 @@ class GreenhouseAutofillTests(unittest.TestCase):
             (out_dir / "submit").mkdir()
             (out_dir / "content").mkdir()
             profile = mock.Mock(
-                first_name="Jerrison",
-                last_name="Li",
-                email="jerrisonli@gmail.com",
-                phone="510-613-5192",
+                first_name="Candidate",
+                last_name="Name",
+                email="candidate@example.com",
+                phone="555-0100",
                 employers=set(),
             )
             application_profile = autofill._parse_application_profile(
@@ -2836,7 +2836,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                     },
                 ),
                 mock.patch.object(
-                    autofill, "_parse_master_resume", return_value=mock.Mock(email="jerrisonli@gmail.com")
+                    autofill, "_parse_master_resume", return_value=mock.Mock(email="candidate@example.com")
                 ),
                 mock.patch.object(
                     autofill, "_parse_application_profile", return_value=mock.Mock(verification_code_email=None)
@@ -2885,7 +2885,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                     },
                 ),
                 mock.patch.object(
-                    autofill, "_parse_master_resume", return_value=mock.Mock(email="jerrisonli@gmail.com")
+                    autofill, "_parse_master_resume", return_value=mock.Mock(email="candidate@example.com")
                 ),
                 mock.patch.object(
                     autofill, "_parse_application_profile", return_value=mock.Mock(verification_code_email=None)
@@ -3136,7 +3136,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                     },
                 ),
                 mock.patch.object(
-                    autofill, "_parse_master_resume", return_value=mock.Mock(email="jerrisonli@gmail.com")
+                    autofill, "_parse_master_resume", return_value=mock.Mock(email="candidate@example.com")
                 ),
                 mock.patch.object(
                     autofill, "_parse_application_profile", return_value=mock.Mock(verification_code_email=None)
@@ -4175,7 +4175,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
 
         self.assertIsNotNone(step)
         assert step is not None
-        self.assertEqual(step["option"], "5–7 years")
+        self.assertEqual(step["option"], "7–10 years")
         self.assertEqual(step["source"], "master_resume.md")
 
     def test_question_step_answers_product_usage_yes(self):
@@ -4213,9 +4213,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_question_step_age_group_missing_profile_value_fails_closed(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -5839,7 +5839,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
         outcome = autofill._classify_submission_snapshot(
             {
                 "url": "https://boards.greenhouse.io/embed/job_app?for=coreweave&token=4638816006",
-                "page_text": "Enter the verification code sent to jerrisonli@gmail.com to confirm you are not a robot.",
+                "page_text": "Enter the verification code sent to candidate@example.com to confirm you are not a robot.",
                 "form_visible": True,
                 "security_code_visible": True,
                 "errors": ["Please select", "is required"],
@@ -5852,16 +5852,16 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_parse_master_resume_contact_line(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         sample = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
         profile = autofill._parse_master_resume(sample)
-        self.assertEqual(profile.first_name, "Jerrison")
-        self.assertEqual(profile.last_name, "Li")
-        self.assertEqual(profile.linkedin, "https://linkedin.com/in/jerrison/")
+        self.assertEqual(profile.first_name, "Candidate")
+        self.assertEqual(profile.last_name, "Name")
+        self.assertEqual(profile.linkedin, "https://linkedin.com/in/candidate/")
         self.assertTrue(profile.work_authorized)
         self.assertIn("moody's analytics", profile.employers)
 
@@ -5869,32 +5869,32 @@ class GreenhouseAutofillTests(unittest.TestCase):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         sample = """
         # Master Resume
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager  |  AI/ML & Enterprise B2B
-        jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         San Francisco, CA | 2024–Present
         Work Authorization: United States Citizen
         """
         profile = autofill._parse_master_resume(sample)
         self.assertEqual(profile.location, "San Francisco, CA")
-        self.assertEqual(profile.email, "jerrisonli@gmail.com")
-        self.assertEqual(profile.phone, "510-613-5192")
+        self.assertEqual(profile.email, "candidate@example.com")
+        self.assertEqual(profile.phone, "555-0100")
 
     def test_parse_master_resume_contact_line_four_parts_with_location(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         sample = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager  |  AI/ML & Enterprise B2B
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
         profile = autofill._parse_master_resume(sample)
         self.assertEqual(profile.location, "San Francisco, CA")
-        self.assertEqual(profile.email, "jerrisonli@gmail.com")
-        self.assertEqual(profile.phone, "510-613-5192")
-        self.assertEqual(profile.website, "https://jerrisonli.com")
+        self.assertEqual(profile.email, "candidate@example.com")
+        self.assertEqual(profile.phone, "555-0100")
+        self.assertEqual(profile.website, "https://candidate.example.com")
         self.assertFalse(profile.linkedin)
 
     def test_build_company_specific_answer_prefers_company_paragraphs(self):
@@ -5934,10 +5934,10 @@ class GreenhouseAutofillTests(unittest.TestCase):
         - Disability Status: No, I do not have a disability and have not had one in the past
         - Pronouns: He / Him / His
         - How Did You Hear About Us: Corporate website
-        - Verification Code Email: jerrisonli@gmail.com
-        - LinkedIn: https://www.linkedin.com/in/jerrison/
-        - GitHub: https://github.com/jerrison
-        - Website: https://jerrisonli.com
+        - Verification Code Email: candidate@example.com
+        - LinkedIn: https://linkedin.com/in/candidate/
+        - GitHub: https://github.com/candidate
+        - Website: https://candidate.example.com
         """
         profile = autofill._parse_application_profile(sample)
         self.assertEqual(profile.country, "United States")
@@ -5962,10 +5962,10 @@ class GreenhouseAutofillTests(unittest.TestCase):
         )
         self.assertEqual(profile.pronouns, "He / Him / His")
         self.assertEqual(profile.how_did_you_hear, "Corporate website")
-        self.assertEqual(profile.verification_code_email, "jerrisonli@gmail.com")
-        self.assertEqual(profile.linkedin, "https://www.linkedin.com/in/jerrison/")
-        self.assertEqual(profile.github, "https://github.com/jerrison")
-        self.assertEqual(profile.website, "https://jerrisonli.com")
+        self.assertEqual(profile.verification_code_email, "candidate@example.com")
+        self.assertEqual(profile.linkedin, "https://linkedin.com/in/candidate/")
+        self.assertEqual(profile.github, "https://github.com/candidate")
+        self.assertEqual(profile.website, "https://candidate.example.com")
 
     def test_parse_application_profile_exposes_education_entries_for_shared_policy_checks(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
@@ -6206,9 +6206,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_build_steps_uses_application_profile_for_sponsorship_and_eeoc(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -6231,10 +6231,10 @@ class GreenhouseAutofillTests(unittest.TestCase):
         - Disability Status: No, I do not have a disability and have not had one in the past
         - Pronouns:
         - How Did You Hear About Us: Corporate website
-        - Verification Code Email: jerrisonli@gmail.com
-        - LinkedIn: https://www.linkedin.com/in/jerrison/
-        - GitHub: https://github.com/jerrison
-        - Website: https://jerrisonli.com
+        - Verification Code Email: candidate@example.com
+        - LinkedIn: https://linkedin.com/in/candidate/
+        - GitHub: https://github.com/candidate
+        - Website: https://candidate.example.com
         """
         candidate_profile = autofill._parse_master_resume(master_resume)
         application_profile = autofill._parse_application_profile(application_profile_text)
@@ -6588,11 +6588,11 @@ class GreenhouseAutofillTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir)
             (out_dir / "cover_letter_text.txt").write_text(
-                "Dear Hiring Team,\n\nFigma is where I want to build next.\n\nBest regards,\nJerrison Li\n",
+                "Dear Hiring Team,\n\nFigma is where I want to build next.\n\nBest regards,\nCandidate Name\n",
                 encoding="utf-8",
             )
-            (out_dir / "Jerrison Li Cover Letter - Figma.pdf").write_bytes(b"%PDF-1.4")
-            (out_dir / "Jerrison Li Resume - Figma.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Cover Letter - Figma.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Figma.pdf").write_bytes(b"%PDF-1.4")
 
             steps = autofill._build_steps(
                 job_post,
@@ -6604,16 +6604,16 @@ class GreenhouseAutofillTests(unittest.TestCase):
             )
 
         steps_by_field = {step["field_name"]: step for step in steps}
-        self.assertEqual(steps_by_field["question_linkedin"]["value"], "https://www.linkedin.com/in/jerrison/")
+        self.assertEqual(steps_by_field["question_linkedin"]["value"], "https://linkedin.com/in/candidate/")
         self.assertEqual(steps_by_field["question_linkedin"]["source"], "application_profile.md")
-        self.assertEqual(steps_by_field["question_github"]["value"], "https://github.com/jerrison")
+        self.assertEqual(steps_by_field["question_github"]["value"], "https://github.com/candidate")
         self.assertEqual(steps_by_field["question_github"]["source"], "application_profile.md")
-        self.assertEqual(steps_by_field["question_website"]["value"], "https://jerrisonli.com")
+        self.assertEqual(steps_by_field["question_website"]["value"], "https://candidate.example.com")
         self.assertEqual(steps_by_field["question_website"]["source"], "application_profile.md")
         self.assertEqual(steps_by_field["question_source"]["value"], "Corporate website")
         self.assertEqual(steps_by_field["question_source"]["source"], "application_profile.md")
         self.assertTrue(
-            steps_by_field["question_cover_letter"]["file_path"].endswith("Jerrison Li Cover Letter - Figma.pdf")
+            steps_by_field["question_cover_letter"]["file_path"].endswith("Candidate Name Cover Letter - Figma.pdf")
         )
         self.assertEqual(steps_by_field["question_why"]["value"], "Fresh tailored answer.")
         self.assertIn("Dear Hiring Team", steps_by_field["question_additional"]["value"])
@@ -6664,9 +6664,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_question_step_prefers_sponsorship_for_mixed_work_authorization_prompt(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -6716,9 +6716,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_question_step_uses_combined_truthful_answer_for_mixed_work_authorization_text_prompt(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -6813,9 +6813,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_question_step_matches_authorized_to_lawfully_work_variant(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -6934,9 +6934,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_question_step_uses_sponsorship_answer_for_employment_based_status_text_prompt(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -7013,9 +7013,9 @@ class GreenhouseAutofillTests(unittest.TestCase):
     def test_build_steps_skips_classic_demographic_answer_fields(self):
         autofill = load_module("autofill_greenhouse", "scripts/autofill_greenhouse.py")
         master_resume = """
-        JERRISON LI
+        CANDIDATE NAME
         Principal Product Manager
-        San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com
+        San Francisco, CA  |  candidate@example.com  |  555-0100  |  linkedin.com/in/candidate/  |  candidate.example.com
         ## MOODY'S ANALYTICS — Associate Director, Product Management
         Work Authorization: United States Citizen
         """
@@ -7063,8 +7063,8 @@ class GreenhouseAutofillTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir)
             (out_dir / "cover_letter_text.txt").write_text("Dear Hiring Team,\n\nThanks.\n", encoding="utf-8")
-            (out_dir / "Jerrison Li Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
-            (out_dir / "Jerrison Li Resume - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Test.pdf").write_bytes(b"%PDF-1.4")
 
             steps = autofill._build_steps(
                 job_post,
@@ -7108,8 +7108,8 @@ class GreenhouseAutofillTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir)
             (out_dir / "cover_letter_text.txt").write_text("Dear Hiring Team,\n\nThanks.\n", encoding="utf-8")
-            (out_dir / "Jerrison Li Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
-            (out_dir / "Jerrison Li Resume - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Test.pdf").write_bytes(b"%PDF-1.4")
 
             steps = autofill._build_steps(
                 job_post,
@@ -7184,8 +7184,8 @@ class GreenhouseAutofillTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_dir = Path(tmp_dir)
             (out_dir / "cover_letter_text.txt").write_text("Dear Hiring Team,\n\nThanks.\n", encoding="utf-8")
-            (out_dir / "Jerrison Li Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
-            (out_dir / "Jerrison Li Resume - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Cover Letter - Test.pdf").write_bytes(b"%PDF-1.4")
+            (out_dir / "Candidate Name Resume - Test.pdf").write_bytes(b"%PDF-1.4")
 
             steps = autofill._build_steps(
                 job_post,
@@ -7215,7 +7215,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
         self.assertFalse(
             autofill._greenhouse_file_upload_confirmed(
                 snapshot,
-                "Jerrison Li Resume - Quince.pdf",
+                "Candidate Name Resume - Quince.pdf",
             )
         )
 
@@ -7232,7 +7232,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
         self.assertTrue(
             autofill._greenhouse_file_upload_confirmed(
                 snapshot,
-                "Jerrison Li Resume - Example.pdf",
+                "Candidate Name Resume - Example.pdf",
             )
         )
 
@@ -7249,7 +7249,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
         page = FakePage()
         step = {
             "label": "Resume/CV",
-            "file_path": "/tmp/Jerrison Li Resume - Example.pdf",
+            "file_path": "/tmp/Candidate Name Resume - Example.pdf",
         }
 
         confirmed = autofill._wait_for_greenhouse_file_upload_confirmation(page, step, timeout_ms=3200)
@@ -7262,7 +7262,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                     "script": mock.ANY,
                     "payload": {
                         "uploadKey": "resume",
-                        "expectedName": "Jerrison Li Resume - Example.pdf",
+                        "expectedName": "Candidate Name Resume - Example.pdf",
                     },
                     "timeout": 3200,
                 }
@@ -7278,7 +7278,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
 
         step = {
             "label": "Cover Letter",
-            "file_path": "/tmp/Jerrison Li Cover Letter - Example.pdf",
+            "file_path": "/tmp/Candidate Name Cover Letter - Example.pdf",
         }
 
         confirmed = autofill._wait_for_greenhouse_file_upload_confirmation(FakePage(), step, timeout_ms=1200)
@@ -7324,7 +7324,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
 
         with mock.patch.object(autofill, "_run_gws_json", side_effect=responses):
             code = autofill._fetch_security_code_from_gmail(
-                "jerrisonli@gmail.com",
+                "candidate@example.com",
                 min_received_at_utc=threshold,
                 wait_seconds=0,
             )
@@ -7508,7 +7508,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "first_name",
                         "label": "First Name",
                         "kind": "text",
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "source": "master_resume.md",
                         "page_index": 1,
                     },
@@ -7516,7 +7516,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "resume",
                         "label": "Resume/CV",
                         "kind": "file",
-                        "file_path": "/tmp/Jerrison Li Resume - Figma.pdf",
+                        "file_path": "/tmp/Candidate Name Resume - Figma.pdf",
                         "source": "existing_resume_asset",
                         "page_index": 1,
                     },
@@ -7524,7 +7524,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "cover_letter",
                         "label": "Cover Letter",
                         "kind": "file",
-                        "file_path": "/tmp/Jerrison Li Cover Letter - Figma.pdf",
+                        "file_path": "/tmp/Candidate Name Cover Letter - Figma.pdf",
                         "source": "existing_cover_letter_asset",
                     },
                 ],
@@ -7560,8 +7560,8 @@ class GreenhouseAutofillTests(unittest.TestCase):
         self.assertIn("## Planned But Unconfirmed", markdown)
         self.assertIn("Cover Letter (`cover_letter`) from `existing_cover_letter_asset`", markdown)
         self.assertEqual(report_json["company"], "Figma")
-        self.assertEqual(report_json["fields"][0]["value"], "Jerrison")
-        self.assertEqual(report_json["fields"][1]["value"], "/tmp/Jerrison Li Resume - Figma.pdf")
+        self.assertEqual(report_json["fields"][0]["value"], "Candidate")
+        self.assertEqual(report_json["fields"][1]["value"], "/tmp/Candidate Name Resume - Figma.pdf")
         self.assertEqual(report_json["fields"][2]["value"], "[redacted 8-character code]")
         self.assertEqual(report_json["planned_but_unconfirmed_fields"][0]["field_name"], "cover_letter")
         self.assertEqual(len(report_json["page_screenshots"]), 2)
@@ -7624,7 +7624,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "first_name",
                         "label": "First Name",
                         "kind": "text",
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "source": "master_resume.md",
                         "page_index": 1,
                     },
@@ -7691,7 +7691,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "first_name",
                         "label": "First Name",
                         "kind": "text",
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "source": "master_resume.md",
                         "page_index": 1,
                     },
@@ -7762,7 +7762,7 @@ class GreenhouseAutofillTests(unittest.TestCase):
                         "field_name": "first_name",
                         "label": "First Name",
                         "kind": "text",
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "source": "master_resume.md",
                         "page_index": 1,
                     },

@@ -6,9 +6,15 @@ import json
 import logging
 import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import material_path
 from job_normalization import company_match_variants, jd_fingerprint, normalize_company, normalize_role_title
 
 try:
@@ -19,7 +25,7 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 # Path to master resume relative to project root
-_RESUME_PATH = Path(__file__).resolve().parent.parent / "master_resume.md"
+_RESUME_PATH = material_path("master_resume.md")
 
 _SCORING_PROMPT = """\
 Score how suitable this job is for the candidate on a scale of 0-100.

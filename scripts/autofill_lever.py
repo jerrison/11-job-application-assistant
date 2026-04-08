@@ -21,6 +21,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from application_submit_common import (
     _COMPENSATION_NEGOTIABLE_ANSWER,
     APPLICATION_PROFILE_PATH,
+    JOBS_DB_PATH,
+    MASTER_RESUME_PATH,
     PROJECT_ROOT,
     GeneratedAnswerBlockersError,
     _authorized_country_codes,
@@ -464,7 +466,7 @@ def _location_matches_expected(actual: str | None, expected: str | None) -> bool
 
 
 def _primary_employer_name() -> str:
-    text = (PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8")
+    text = MASTER_RESUME_PATH.read_text(encoding="utf-8")
     # Try markdown header format (## Company —) then plain text (COMPANY — Title)
     match = re.search(r"^\s*##\s+(.+?)\s+—", text, re.M)
     if not match:
@@ -1324,8 +1326,15 @@ def _find_lever_url(meta: dict, out_dir: Path) -> str:
 
     import sqlite3
 
-    db_path = PROJECT_ROOT / "jobs.db"
-    if db_path.exists():
+    db_paths: list[Path] = []
+    if PROJECT_ROOT / "jobs.db" not in db_paths:
+        db_paths.append(PROJECT_ROOT / "jobs.db")
+    if JOBS_DB_PATH not in db_paths:
+        db_paths.append(JOBS_DB_PATH)
+
+    for db_path in db_paths:
+        if not db_path.exists():
+            continue
         try:
             conn = sqlite3.connect(str(db_path))
             for col in ("url", "board_url"):
@@ -1338,7 +1347,7 @@ def _find_lever_url(meta: dict, out_dir: Path) -> str:
                     return row[0].split("?")[0]
             conn.close()
         except sqlite3.Error:
-            pass
+            continue
 
     raise ValueError(
         f"Cannot find a Lever URL for {out_dir}. The pipeline meta and jobs database do not contain a lever.co URL."
@@ -1348,7 +1357,7 @@ def _find_lever_url(meta: dict, out_dir: Path) -> str:
 def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     application_url = _lever_application_url(_find_lever_url(meta, out_dir))
     inspection = _inspect_lever_form(

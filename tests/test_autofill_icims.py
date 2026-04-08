@@ -649,7 +649,7 @@ def test_do_create_account_accepts_privacy_consent_before_email_first_registrati
         mock.patch.object(
             mod,
             "parse_master_resume",
-            return_value=SimpleNamespace(first_name="Jerrison", last_name="Li"),
+            return_value=SimpleNamespace(first_name="Candidate", last_name="Name"),
         ),
     ):
         result = mod._do_create_account(page, "debug@example.com", "debug-password")
@@ -672,7 +672,7 @@ def test_do_create_account_force_clicks_auth_submit_when_overlay_intercepts_poin
         mock.patch.object(
             mod,
             "parse_master_resume",
-            return_value=SimpleNamespace(first_name="Jerrison", last_name="Li"),
+            return_value=SimpleNamespace(first_name="Candidate", last_name="Name"),
         ),
     ):
         result = mod._do_create_account(page, "debug@example.com", "debug-password")
@@ -691,7 +691,7 @@ def test_do_create_account_skips_readonly_prefilled_email_field():
         mock.patch.object(
             mod,
             "parse_master_resume",
-            return_value=SimpleNamespace(first_name="Jerrison", last_name="Li"),
+            return_value=SimpleNamespace(first_name="Candidate", last_name="Name"),
         ),
     ):
         result = mod._do_create_account(page, "debug@example.com", "debug-password")
@@ -878,18 +878,18 @@ def test_click_next_button_accepts_submit_profile_variant():
 def test_fill_profile_page_populates_visible_login_credentials():
     mod = load_module("autofill_icims", "scripts/autofill_icims.py")
     profile = SimpleNamespace(
-        first_name="Jerrison",
-        last_name="Li",
-        email="jerrisonli@gmail.com",
+        first_name="Candidate",
+        last_name="Name",
+        email="candidate@example.com",
         phone="+1 415-555-0100",
         location="San Francisco, CA",
-        linkedin="https://linkedin.com/in/jerrisonli",
+        linkedin="https://linkedin.com/in/candidate/",
     )
     application_profile = SimpleNamespace(
         street_address="",
         location="San Francisco, CA",
         zip_code="94105",
-        linkedin="https://linkedin.com/in/jerrisonli",
+        linkedin="https://linkedin.com/in/candidate/",
     )
 
     def fake_fill_by_label(page, label_text, value):
@@ -907,7 +907,7 @@ def test_fill_profile_page_populates_visible_login_credentials():
             profile,
             application_profile,
             Path("/tmp"),
-            login_email="jerrisonli@gmail.com",
+            login_email="candidate@example.com",
             login_password="debug-password",
         )
 
@@ -934,7 +934,7 @@ def test_fill_profile_step_merges_profile_and_deterministic_embedded_questions()
             out_dir=Path("/tmp"),
             meta={"company": "Joby Aviation"},
             provider="openai",
-            login_email="jerrisonli@gmail.com",
+            login_email="candidate@example.com",
             login_password="debug-password",
         )
 

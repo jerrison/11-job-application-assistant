@@ -2437,7 +2437,7 @@ function renderCoverLetterTab(container, text) {
   if (!hasSignoff) {
     const signoff = document.createElement('p');
     signoff.style.marginTop = '16px';
-    signoff.innerHTML = 'Best regards,<br>Jerrison Li';
+    signoff.innerHTML = 'Best regards,<br>Candidate Name';
     div.appendChild(signoff);
   }
 

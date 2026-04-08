@@ -138,7 +138,7 @@ class LinkedInPayloadTests(unittest.TestCase):
             docs_dir = out_dir / "documents"
             docs_dir.mkdir()
             (out_dir / ".pipeline_meta.json").write_text('{"jd_url": "https://linkedin.com/jobs/view/1/"}')
-            (docs_dir / "Jerrison Li Resume - Acme.pdf").write_bytes(b"%PDF-fake")
+            (docs_dir / "Candidate Name Resume - Acme.pdf").write_bytes(b"%PDF-fake")
             payload = self.mod._build_payload(out_dir)
             assert payload["resume_path"] is not None
             assert "Resume" in payload["resume_path"]
@@ -152,8 +152,8 @@ class LinkedInPayloadTests(unittest.TestCase):
             docs_dir = out_dir / "documents"
             docs_dir.mkdir()
             (out_dir / ".pipeline_meta.json").write_text('{"jd_url": "https://linkedin.com/jobs/view/1/"}')
-            (docs_dir / "Jerrison Li Resume - Acme.pdf").write_bytes(b"%PDF-fake")
-            (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_bytes(b"%PDF-fake")
+            (docs_dir / "Candidate Name Resume - Acme.pdf").write_bytes(b"%PDF-fake")
+            (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_bytes(b"%PDF-fake")
             payload = self.mod._build_payload(out_dir)
             assert payload["cover_letter_path"] is not None
             assert "Cover Letter" in payload["cover_letter_path"]
@@ -169,11 +169,11 @@ class LinkedInPayloadTests(unittest.TestCase):
             (out_dir / ".pipeline_meta.json").write_text(
                 '{"jd_url": "https://linkedin.com/jobs/view/1/", "company_proper": "Asurion"}'
             )
-            (docs_dir / "Jerrison Li Resume - Linkedin.pdf").write_bytes(b"%PDF-linkedin")
-            (docs_dir / "Jerrison Li Resume - Asurion.pdf").write_bytes(b"%PDF-asurion")
+            (docs_dir / "Candidate Name Resume - Linkedin.pdf").write_bytes(b"%PDF-linkedin")
+            (docs_dir / "Candidate Name Resume - Asurion.pdf").write_bytes(b"%PDF-asurion")
             payload = self.mod._build_payload(out_dir)
             assert payload["resume_path"] is not None
-            assert payload["resume_path"].endswith("Jerrison Li Resume - Asurion.pdf")
+            assert payload["resume_path"].endswith("Candidate Name Resume - Asurion.pdf")
 
     def test_build_payload_prefers_canonical_cover_letter_when_stale_variant_exists(self):
         import tempfile
@@ -186,14 +186,14 @@ class LinkedInPayloadTests(unittest.TestCase):
             (out_dir / ".pipeline_meta.json").write_text(
                 '{"jd_url": "https://linkedin.com/jobs/view/1/", "company_proper": "Cresta"}'
             )
-            (docs_dir / "Jerrison Li Resume - Cresta.pdf").write_bytes(b"%PDF-resume")
-            (docs_dir / "Jerrison Li Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale")
-            (docs_dir / "Jerrison Li Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical")
+            (docs_dir / "Candidate Name Resume - Cresta.pdf").write_bytes(b"%PDF-resume")
+            (docs_dir / "Candidate Name Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale")
+            (docs_dir / "Candidate Name Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical")
 
             payload = self.mod._build_payload(out_dir)
 
             assert payload["cover_letter_path"] is not None
-            assert payload["cover_letter_path"].endswith("Jerrison Li Cover Letter - Cresta.pdf")
+            assert payload["cover_letter_path"].endswith("Candidate Name Cover Letter - Cresta.pdf")
 
     def test_build_payload_exposes_candidate_profile_fields(self):
         import tempfile
@@ -213,8 +213,8 @@ class LinkedInPayloadTests(unittest.TestCase):
             payload = self.mod._build_payload(out_dir)
 
             assert payload["candidate_location"] == "San Francisco, CA"
-            assert payload["candidate_linkedin"] == "https://www.linkedin.com/in/jerrison/"
-            assert payload["candidate_website"] == "https://jerrisonli.com"
+            assert payload["candidate_linkedin"] == "https://linkedin.com/in/candidate/"
+            assert payload["candidate_website"] == "https://candidate.example.com"
 
     def test_build_payload_falls_back_to_repo_source_materials_when_output_copies_missing(self):
         import tempfile
@@ -230,8 +230,8 @@ class LinkedInPayloadTests(unittest.TestCase):
             assert payload["candidate_email"]
             assert payload["candidate_phone"]
             assert payload["candidate_location"] == "San Francisco, CA"
-            assert payload["candidate_linkedin"] == "https://www.linkedin.com/in/jerrison/"
-            assert payload["candidate_website"] == "https://jerrisonli.com"
+            assert payload["candidate_linkedin"] == "https://linkedin.com/in/candidate/"
+            assert payload["candidate_website"] == "https://candidate.example.com"
 
 
 class _FakeLinkedInLocator:
@@ -751,7 +751,7 @@ class LinkedInUncheckFollowTests(unittest.TestCase):
                 "field_name": "resume",
                 "label": "upload resume",
                 "kind": "file",
-                "value": "/tmp/Jerrison Li Resume - Matterport.pdf",
+                "value": "/tmp/Candidate Name Resume - Matterport.pdf",
                 "source": "generated_resume",
                 "filled": True,
                 "required": True,
@@ -983,7 +983,7 @@ class LinkedInTextareaTests(unittest.TestCase):
         self.assertEqual(unknown_questions, [])
 
     def test_fill_text_field_clears_conditional_followup_and_skips_unknown(self):
-        input_field = _FakeLinkedInInput("Jerrison")
+        input_field = _FakeLinkedInInput("Candidate")
         filled_steps: list[dict] = []
         unknown_questions: list[dict] = []
 
@@ -1226,18 +1226,18 @@ class LinkedInTextareaTests(unittest.TestCase):
 
         def fake_generate_application_answers(*, question_specs, **kwargs):
             captured["field_name"] = question_specs[0]["field_name"]
-            return {captured["field_name"]: "jerrisonli@gmail.com"}
+            return {captured["field_name"]: "candidate@example.com"}
 
         with mock.patch("application_submit_common.generate_application_answers", side_effect=fake_generate_application_answers):
             answer, source = mod._answer_for_select_details(
                 "Email address\nEmail address",
-                ["Select an option", "jerrisonli@gmail.com"],
+                ["Select an option", "candidate@example.com"],
                 {},
                 Path("/tmp"),
             )
 
         assert captured["field_name"] == "email_address_email_address"
-        assert answer == "jerrisonli@gmail.com"
+        assert answer == "candidate@example.com"
         assert source == "generated_application_answer"
 
     def test_answer_for_select_details_uses_resume_backed_skill_confirmation_for_supported_choice_question(self):
@@ -2103,13 +2103,13 @@ class LinkedInResumeStateTests(unittest.TestCase):
     def setUp(self):
         self.mod = load_module("autofill_linkedin", "scripts/autofill_linkedin.py")
         self.payload = {
-            "resume_path": "/tmp/Jerrison Li Resume - Asurion.pdf",
+            "resume_path": "/tmp/Candidate Name Resume - Asurion.pdf",
             "company": "Asurion",
         }
 
     def test_resume_text_matches_expected_company_named_resume(self):
         assert self.mod._resume_text_matches_expected(
-            "Deselect resume Jerrison Li Resume - Asurion.pdf",
+            "Deselect resume Candidate Name Resume - Asurion.pdf",
             self.payload,
         )
 
@@ -2117,11 +2117,11 @@ class LinkedInResumeStateTests(unittest.TestCase):
         markers = {
             "modalText": "Resume Upload resume Show more resumes",
             "buttons": [
-                "Deselect resume Jerrison Li Resume - Linkedin.pdf",
-                "Select resume Jerrison Li Resume.pdf",
+                "Deselect resume Candidate Name Resume - Linkedin.pdf",
+                "Select resume Candidate Name Resume.pdf",
                 "Upload resume",
             ],
-            "checked": ["Deselect resume Jerrison Li Resume - Linkedin.pdf"],
+            "checked": ["Deselect resume Candidate Name Resume - Linkedin.pdf"],
             "fileInputs": [],
         }
 
@@ -2135,10 +2135,10 @@ class LinkedInResumeStateTests(unittest.TestCase):
         markers = {
             "modalText": "Resume Upload resume",
             "buttons": [
-                "Deselect resume Jerrison Li Resume - Asurion.pdf",
+                "Deselect resume Candidate Name Resume - Asurion.pdf",
                 "Upload resume",
             ],
-            "checked": ["Deselect resume Jerrison Li Resume - Asurion.pdf"],
+            "checked": ["Deselect resume Candidate Name Resume - Asurion.pdf"],
             "fileInputs": [],
         }
 
@@ -2159,21 +2159,21 @@ class LinkedInResumeStateTests(unittest.TestCase):
         )
 
         assert outcomes[0]["status"] == "review_without_visible_resume_controls"
-        assert outcomes[0]["expected_file"] == "Jerrison Li Resume - Asurion.pdf"
+        assert outcomes[0]["expected_file"] == "Candidate Name Resume - Asurion.pdf"
 
     def test_resume_outcomes_report_visible_upload_failure(self):
         outcomes = self.mod._resume_outcomes(
             {
                 "status": "upload_verification_failed",
                 "message": "expected resume was never selected",
-                "observed_selection_labels": ["Deselect resume Jerrison Li Resume - Linkedin.pdf"],
+                "observed_selection_labels": ["Deselect resume Candidate Name Resume - Linkedin.pdf"],
                 "visible_upload_path_seen": True,
             },
             self.payload,
         )
 
         assert outcomes[0]["status"] == "upload_verification_failed"
-        assert outcomes[0]["observed_selection_labels"] == ["Deselect resume Jerrison Li Resume - Linkedin.pdf"]
+        assert outcomes[0]["observed_selection_labels"] == ["Deselect resume Candidate Name Resume - Linkedin.pdf"]
 
 
 class LinkedInFailureArtifactTests(unittest.TestCase):

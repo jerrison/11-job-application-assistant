@@ -9,13 +9,25 @@ import sys
 from pathlib import Path
 from typing import Any
 
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from app_paths import jobs_db_path
+
 try:
     from fastapi import Request as FastAPIRequest
 except ImportError:  # pragma: no cover - optional web dependency
     FastAPIRequest = Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+PROJECT_ROOT = SCRIPTS_DIR.parent
+_DEFAULT_PROJECT_ROOT = PROJECT_ROOT
+
+
+def _runtime_jobs_db_path() -> Path:
+    if PROJECT_ROOT != _DEFAULT_PROJECT_ROOT:
+        return PROJECT_ROOT / "jobs.db"
+    return jobs_db_path()
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +47,7 @@ def create_app():
             sys.path.insert(0, str(SCRIPTS_DIR))
         from job_db import open_db_tracked
 
-        return open_db_tracked(PROJECT_ROOT / "jobs.db", check_same_thread=False)
+        return open_db_tracked(_runtime_jobs_db_path(), check_same_thread=False)
 
     def _request_action_audit(request: FastAPIRequest) -> tuple[dict | None, str | None]:
         if str(SCRIPTS_DIR) not in sys.path:

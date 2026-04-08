@@ -15,15 +15,20 @@ import re
 import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import material_path, sync_state_path
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MASTER_RESUME_PATH = PROJECT_ROOT / "master_resume.md"
-WORK_STORIES_PATH = PROJECT_ROOT / "work_stories.md"
-BULLETS_CACHE_PATH = PROJECT_ROOT / ".bullets_cache.json"
-STORY_TERMS_CACHE_PATH = PROJECT_ROOT / ".story_terms_cache.json"
+MASTER_RESUME_PATH = material_path("master_resume.md")
+WORK_STORIES_PATH = material_path("work_stories.md")
+BULLETS_CACHE_PATH = sync_state_path(".bullets_cache.json")
+STORY_TERMS_CACHE_PATH = sync_state_path(".story_terms_cache.json")
 
 # Position IDs mapped to heading patterns in master_resume.md
 POSITION_HEADINGS = {

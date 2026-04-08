@@ -27,6 +27,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from app_paths import code_root, materials_root
+from candidate_runtime import document_filename
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
@@ -47,7 +49,6 @@ FONT = "Calibri"
 COLOR_BLACK = RGBColor(0x33, 0x33, 0x33)
 COLOR_BLUE = RGBColor(0x2B, 0x57, 0x9A)
 COLOR_GRAY = RGBColor(0x55, 0x55, 0x55)
-CANDIDATE_NAME = "Jerrison Li"
 
 
 # ---------------------------------------------------------------------------
@@ -98,10 +99,10 @@ def _gather_context(out_dir: Path) -> dict:
         "jd_raw": _read_optional(content_dir / "jd_raw.md"),
         "jd_parsed": _read_optional(content_dir / "jd_parsed.json"),
         "research_cache": _read_optional(content_dir / "role_research_cache.json"),
-        "master_resume": _read_optional(PROJECT_ROOT / "master_resume.md"),
-        "work_stories": _read_optional(PROJECT_ROOT / "work_stories.md"),
-        "candidate_context": _read_optional(PROJECT_ROOT / "candidate_context.md"),
-        "application_profile": _read_optional(PROJECT_ROOT / "application_profile.md"),
+        "master_resume": _read_optional(materials_root() / "master_resume.md"),
+        "work_stories": _read_optional(materials_root() / "work_stories.md"),
+        "candidate_context": _read_optional(materials_root() / "candidate_context.md"),
+        "application_profile": _read_optional(materials_root() / "application_profile.md"),
     }
 
 
@@ -118,7 +119,7 @@ def _build_prompt(
     notes: str,
 ) -> str:
     """Build the full prompt (system + user message) for the configured provider."""
-    system_prompt_path = PROJECT_ROOT / "scripts" / "prompts" / "interview_prep_system.md"
+    system_prompt_path = code_root() / "scripts" / "prompts" / "interview_prep_system.md"
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
 
     output_path = prep_dir / "interview_prep.md"
@@ -554,7 +555,7 @@ def main() -> None:
 
     # Step 4: Generate .docx
     print("Building .docx document...")
-    docx_path = prep_dir / f"{CANDIDATE_NAME} Interview Prep - {company}.docx"
+    docx_path = prep_dir / document_filename("Interview Prep", company, ".docx")
     _build_docx(md_content, docx_path)
 
     # Step 5: Generate .pdf

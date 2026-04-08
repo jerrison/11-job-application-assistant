@@ -23,6 +23,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from app_paths import jobs_db_path, material_path, output_root
 from job_board_urls import (
     ashby_job_id_from_url,
     dover_job_or_search_id_from_url,
@@ -46,8 +47,27 @@ from project_env import load_project_env
 load_project_env()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_ROOT = PROJECT_ROOT / "output"
-APPLICATION_PROFILE_PATH = PROJECT_ROOT / "application_profile.md"
+_DEFAULT_PROJECT_ROOT = PROJECT_ROOT
+OUTPUT_ROOT = output_root()
+APPLICATION_PROFILE_PATH = material_path("application_profile.md")
+
+
+def _runtime_output_root() -> Path:
+    if PROJECT_ROOT != _DEFAULT_PROJECT_ROOT:
+        return PROJECT_ROOT / "output"
+    return output_root()
+
+
+def _runtime_application_profile_path() -> Path:
+    if PROJECT_ROOT != _DEFAULT_PROJECT_ROOT:
+        return PROJECT_ROOT / "application_profile.md"
+    return material_path("application_profile.md")
+
+
+def _runtime_jobs_db_path() -> Path:
+    if PROJECT_ROOT != _DEFAULT_PROJECT_ROOT:
+        return PROJECT_ROOT / "jobs.db"
+    return jobs_db_path()
 
 DEFAULT_NOTION_DATABASE_ID = "2e238885-a751-80cd-bd2c-da1a28dc3edb"
 DEFAULT_NOTION_DATA_SOURCE_ID = "2e238885-a751-802d-8274-000bd78e05b4"
@@ -206,9 +226,10 @@ def _parse_profile_value(text: str, label: str) -> str | None:
 
 
 def _verification_email() -> str | None:
-    if not APPLICATION_PROFILE_PATH.exists():
+    profile_path = _runtime_application_profile_path()
+    if not profile_path.exists():
         return None
-    text = APPLICATION_PROFILE_PATH.read_text(encoding="utf-8")
+    text = profile_path.read_text(encoding="utf-8")
     return _parse_profile_value(text, "Verification Code Email") or _parse_profile_value(text, "Email")
 
 
@@ -223,10 +244,11 @@ def _find_output_dir(target: str) -> Path:
         migrate_role_output_layout(resolved)
         return resolved
 
-    if not OUTPUT_ROOT.exists():
+    output_root_path = _runtime_output_root()
+    if not output_root_path.exists():
         raise FileNotFoundError(f"Could not find output directory for {target!r}")
 
-    for meta_path in OUTPUT_ROOT.glob("*/*/.pipeline_meta.json"):
+    for meta_path in output_root_path.glob("*/*/.pipeline_meta.json"):
         meta = _read_json(meta_path)
         if not isinstance(meta, dict):
             continue
@@ -1137,7 +1159,7 @@ def _jd_blocks(out_dir: Path) -> list[dict]:
 
 
 def _load_submission_history_for_output(out_dir: Path) -> dict:
-    db_path = PROJECT_ROOT / "jobs.db"
+    db_path = _runtime_jobs_db_path()
     if not db_path.exists():
         return {}
     conn = sqlite3.connect(str(db_path), timeout=30)
@@ -1333,7 +1355,7 @@ def _body_blocks(out_dir: Path, website_confirmation: dict, email_confirmation: 
         items.append(("bulleted_list_item", "Email confirmation: not received"))
     items.extend(
         [
-            ("bulleted_list_item", f"Output directory: {out_dir.relative_to(PROJECT_ROOT)}"),
+            ("bulleted_list_item", f"Output directory: {_display_path(out_dir)}"),
             ("heading_2", "Job Description"),
         ]
     )

@@ -12,7 +12,7 @@ When -c and -r are omitted, the script auto-detects them from the parsed JD
 Where <jd_source> is either a file path or a URL (http:// or https://).
 
 Pipeline steps:
-    1. Sync work_stories.md and candidate_context.md from Google Docs (unless --skip-sync)
+    1. Sync work_stories.md and candidate_context.md from configured remote sources (unless --skip-sync)
     2. If jd_source is a URL, extract the JD from the website and require a usable result
     3. Run parse_jd.py → extract company/role slugs if needed
     4. Run rank_bullets.py
@@ -31,6 +31,7 @@ import atexit
 import hashlib
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -47,6 +48,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from app_paths import material_path, sync_state_path, tmp_root
+from candidate_runtime import document_filename, load_candidate_runtime_profile
 from entrypoint_guard import abort_if_recursive_entrypoints_forbidden
 from job_board_urls import (
     canonical_greenhouse_job_url,
@@ -71,16 +74,12 @@ from worker_subprocess import run_worker_subprocess
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-WORK_STORIES_PATH = PROJECT_ROOT / "work_stories.md"
-SYNC_STATE_PATH = PROJECT_ROOT / ".work_stories_sync_state.json"
-WORK_STORIES_EXPORT_URL = (
-    "https://docs.google.com/document/d/1jjR7eekdzvTHkiTSMUShSpZ9ebBAfCmrGrxgD3S3EpQ/export?format=txt"
-)
-CANDIDATE_CONTEXT_PATH = PROJECT_ROOT / "candidate_context.md"
-CANDIDATE_CONTEXT_SYNC_STATE_PATH = PROJECT_ROOT / ".candidate_context_sync_state.json"
-CANDIDATE_CONTEXT_EXPORT_URL = (
-    "https://docs.google.com/document/d/1tFu7zKQkxo7q3Ar4VXrqs7RT9YoiPF_4NXCsAADJD0c/export?format=txt"
-)
+WORK_STORIES_PATH = material_path("work_stories.md")
+SYNC_STATE_PATH = sync_state_path(".work_stories_sync_state.json")
+WORK_STORIES_SOURCE_URL_ENV = "JOB_ASSETS_WORK_STORIES_SOURCE_URL"
+CANDIDATE_CONTEXT_PATH = material_path("candidate_context.md")
+CANDIDATE_CONTEXT_SYNC_STATE_PATH = sync_state_path(".candidate_context_sync_state.json")
+CANDIDATE_CONTEXT_SOURCE_URL_ENV = "JOB_ASSETS_CANDIDATE_CONTEXT_SOURCE_URL"
 
 PYTHON = sys.executable
 STEALTH_DOMAINS = (
@@ -132,7 +131,7 @@ def _create_pipeline_tmp_dir(base_dir: Path | None = None) -> Path:
     Concurrent worker runs must never share temp JD files or they can clobber
     each other's parsed content and write the wrong metadata/output paths.
     """
-    root = Path(base_dir) if base_dir is not None else (PROJECT_ROOT / "tmp" / "pipeline")
+    root = Path(base_dir) if base_dir is not None else (tmp_root() / "pipeline")
     root.mkdir(parents=True, exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(prefix="run-", dir=str(root)))
     atexit.register(shutil.rmtree, tmp_dir, ignore_errors=True)
@@ -185,7 +184,8 @@ def _normalize_cover_letter(path: Path) -> None:
         text = "Dear Hiring Team,\n\n" + text
         changed = True
     if not re.search(r"\n(Best regards|Sincerely|Regards|Warm regards|Thank you),?\s*\n", text, re.IGNORECASE):
-        text = text.rstrip() + "\n\nBest regards,\nJerrison Li"
+        candidate_profile = load_candidate_runtime_profile()
+        text = text.rstrip() + f"\n\nBest regards,\n{candidate_profile.full_name}"
         changed = True
     if changed:
         path.write_text(text + "\n", encoding="utf-8")
@@ -998,8 +998,29 @@ def _try_fetch_greenhouse_api(url: str, output_path: Path) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Google Doc sync
+# Remote source sync
 # ---------------------------------------------------------------------------
+
+_GOOGLE_DOC_RE = re.compile(r"^https?://docs\.google\.com/document/d/([A-Za-z0-9_-]+)")
+
+
+def _normalize_remote_source_url(source_url: str) -> str:
+    normalized = str(source_url or "").strip()
+    if not normalized:
+        raise ValueError("source_url is required")
+
+    match = _GOOGLE_DOC_RE.match(normalized)
+    if match:
+        doc_id = match.group(1)
+        return f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+    return normalized
+
+
+def _configured_sync_source_url(env_var_name: str) -> str | None:
+    raw = os.environ.get(env_var_name, "").strip()
+    if not raw:
+        return None
+    return _normalize_remote_source_url(raw)
 
 
 def _sync_google_doc(
@@ -1010,8 +1031,8 @@ def _sync_google_doc(
     export_url: str,
     opener=urlopen,
 ) -> None:
-    """Fetch a Google Doc export, updating the local file only when content changes."""
-    _log(f"\n[sync] Fetching {label} from Google Docs...")
+    """Fetch a remote text source, updating the local file only when content changes."""
+    _log(f"\n[sync] Fetching {label} from configured source...")
 
     t0 = time.monotonic()
 
@@ -1056,27 +1077,35 @@ def _sync_google_doc(
 
 
 def sync_work_stories() -> None:
-    """Fetch work_stories.md from Google Docs, update only if changed."""
+    """Fetch work_stories.md from a configured source, update only if changed."""
+    source_url = _configured_sync_source_url(WORK_STORIES_SOURCE_URL_ENV)
+    if not source_url:
+        _log(f"[sync] Skipping work_stories.md; {WORK_STORIES_SOURCE_URL_ENV} is not set.")
+        return
     _sync_google_doc(
         label="work_stories.md",
         output_path=WORK_STORIES_PATH,
         state_path=SYNC_STATE_PATH,
-        export_url=WORK_STORIES_EXPORT_URL,
+        export_url=source_url,
     )
 
 
 def sync_candidate_context() -> None:
-    """Fetch candidate_context.md from Google Docs, update only if changed."""
+    """Fetch candidate_context.md from a configured source, update only if changed."""
+    source_url = _configured_sync_source_url(CANDIDATE_CONTEXT_SOURCE_URL_ENV)
+    if not source_url:
+        _log(f"[sync] Skipping candidate_context.md; {CANDIDATE_CONTEXT_SOURCE_URL_ENV} is not set.")
+        return
     _sync_google_doc(
         label="candidate_context.md",
         output_path=CANDIDATE_CONTEXT_PATH,
         state_path=CANDIDATE_CONTEXT_SYNC_STATE_PATH,
-        export_url=CANDIDATE_CONTEXT_EXPORT_URL,
+        export_url=source_url,
     )
 
 
 def sync_supporting_docs() -> None:
-    """Fetch supporting Google Docs concurrently to shave fixed startup latency."""
+    """Fetch configured supporting sources concurrently to shave fixed startup latency."""
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
             executor.submit(sync_work_stories),
@@ -1119,7 +1148,7 @@ def main() -> None:
     parser.add_argument(
         "--skip-sync",
         action="store_true",
-        help="Skip Google Doc syncs (work_stories.md and candidate_context.md).",
+        help="Skip configured source syncs (work_stories.md and candidate_context.md).",
     )
     parser.add_argument(
         "--meta-path-file",
@@ -1172,7 +1201,7 @@ def main() -> None:
         if resolved_jd_source != extraction_source_url:
             _log(f"\n[resolve] Canonical job URL: {resolved_jd_source}")
 
-    # ── Step 1: Sync Google Docs ───────────────────────────────────────────
+    # ── Step 1: Sync configured remote sources ─────────────────────────────
 
     if not args.skip_sync:
         sync_supporting_docs()
@@ -1461,9 +1490,9 @@ def main() -> None:
     draft_path = role_content_path(out_dir, "resume_content_draft.json")
     resume_content_path = role_content_path(out_dir, "resume_content.json")
     cover_letter_text_path = role_content_path(out_dir, "cover_letter_text.txt")
-    resume_docx_path = role_documents_path(out_dir, f"Jerrison Li Resume - {company_proper}.docx")
-    cover_letter_docx_path = role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_proper}.docx")
-    resume_pdf_path = role_documents_path(out_dir, f"Jerrison Li Resume - {company_proper}.pdf")
+    resume_docx_path = role_documents_path(out_dir, document_filename("Resume", company_proper, ".docx"))
+    cover_letter_docx_path = role_documents_path(out_dir, document_filename("Cover Letter", company_proper, ".docx"))
+    resume_pdf_path = role_documents_path(out_dir, document_filename("Resume", company_proper, ".pdf"))
 
     _log("\n" + "=" * 60)
     _log("  RESUME PIPELINE")

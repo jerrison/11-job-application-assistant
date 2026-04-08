@@ -229,7 +229,7 @@ class DoverAutofillTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            resume_path = out_dir / "documents" / "Jerrison Li Resume - Suppli.pdf"
+            resume_path = out_dir / "documents" / "Candidate Name Resume - Suppli.pdf"
             resume_path.write_bytes(b"%PDF-1.4 test")
             ai_field_name = autofill._question_field_name(job_payload["application_questions"][1])
 
@@ -263,7 +263,7 @@ class DoverAutofillTests(unittest.TestCase):
         self.assertEqual(custom_answers[1]["id"], "q-ai")
         self.assertIn("Claude", custom_answers[1]["answer"])
         self.assertEqual(custom_answers[2]["id"], "q-github")
-        self.assertEqual(custom_answers[2]["answer"], "https://github.com/jerrison")
+        self.assertEqual(custom_answers[2]["answer"], "https://github.com/candidate")
 
     def test_build_payload_attaches_cover_letter_when_upload_question_exists(self):
         autofill = load_module("autofill_dover", "scripts/autofill_dover.py")
@@ -309,9 +309,9 @@ class DoverAutofillTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            resume_path = out_dir / "documents" / "Jerrison Li Resume - Suppli.pdf"
+            resume_path = out_dir / "documents" / "Candidate Name Resume - Suppli.pdf"
             resume_path.write_bytes(b"%PDF-1.4 resume")
-            cover_letter_path = out_dir / "documents" / "Jerrison Li Cover Letter - Suppli.pdf"
+            cover_letter_path = out_dir / "documents" / "Candidate Name Cover Letter - Suppli.pdf"
             cover_letter_path.write_bytes(b"%PDF-1.4 cover")
 
             with mock.patch.object(autofill, "_fetch_dover_job", return_value=job_payload):

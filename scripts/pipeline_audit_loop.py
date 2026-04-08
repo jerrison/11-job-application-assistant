@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 PROJECT_ROOT = SCRIPT_DIR.parent
 
+from app_paths import output_root as runtime_output_root
 from pipeline_draft_proof import current_rendered_audit_inputs, draft_review_state  # noqa: E402
 from rendered_state_audit import audit_rendered_option_fields  # noqa: E402
 from submit_review_common import (  # noqa: E402
@@ -428,7 +429,7 @@ def write_audit_failure_report(
 
 
 def refresh_active_audit_failure_index(*, output_root: str | Path | None = None) -> Path:
-    root = Path(output_root) if output_root is not None else (PROJECT_ROOT / "output")
+    root = Path(output_root) if output_root is not None else runtime_output_root()
     audit_dir = root / "_audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
     index_path = audit_dir / "active_audit_failures.md"

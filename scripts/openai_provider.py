@@ -27,6 +27,13 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from runtime_policy import ensure_action_allowed
+from runtime_trace import configure_runtime_trace, emit_trace
+
 DEFAULT_MODEL = "gpt-5.4"
 DEFAULT_TIMEOUT = 180
 DEFAULT_MAX_RETRIES = 3
@@ -166,12 +173,33 @@ def _response_text_format(args: argparse.Namespace) -> dict | None:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    configure_runtime_trace(environ=os.environ, replace=True)
+    trace_metadata = {
+        "surface": "provider_subprocess",
+        "provider": "openai",
+        "model": args.model,
+        "reasoning_effort": args.reasoning_effort or "",
+        "search_enabled": bool(args.search),
+        "file_tools_enabled": bool(args.file_tools),
+        "json_mode": bool(args.json_mode),
+        "json_schema": bool(args.json_schema),
+        "timeout_seconds": args.timeout,
+    }
+    ensure_action_allowed("provider_call", metadata=trace_metadata, environ=os.environ)
+    emit_trace("provider_call_started", action="provider_call", metadata=trace_metadata, environ=os.environ)
 
     # Read prompt from stdin if "-" is passed.
     if args.prompt == "-":
         prompt = sys.stdin.read()
         if not prompt.strip():
             print("Error: empty prompt from stdin", file=sys.stderr)
+            emit_trace(
+                "provider_call_failed",
+                action="provider_call",
+                status="error",
+                metadata={**trace_metadata, "reason": "empty_prompt"},
+                environ=os.environ,
+            )
             return 1
     else:
         prompt = args.prompt
@@ -180,11 +208,25 @@ def main() -> int:
         text_format = _response_text_format(args)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
+        emit_trace(
+            "provider_call_failed",
+            action="provider_call",
+            status="error",
+            metadata={**trace_metadata, "reason": "invalid_response_format"},
+            environ=os.environ,
+        )
         return 1
 
     api_keys = configured_openai_api_keys()
     if not api_keys:
         print("Error: OPENAI_API_KEYS or OPENAI_API_KEY environment variable is not set", file=sys.stderr)
+        emit_trace(
+            "provider_call_failed",
+            action="provider_call",
+            status="error",
+            metadata={**trace_metadata, "reason": "missing_api_key"},
+            environ=os.environ,
+        )
         return 1
     api_key = select_openai_api_key(api_keys)
 
@@ -192,6 +234,13 @@ def main() -> int:
         from openai import OpenAI
     except ImportError:
         print("Error: openai package is not installed — run: uv add openai", file=sys.stderr)
+        emit_trace(
+            "provider_call_failed",
+            action="provider_call",
+            status="error",
+            metadata={**trace_metadata, "reason": "openai_package_missing"},
+            environ=os.environ,
+        )
         return 1
 
     client = OpenAI(
@@ -229,6 +278,13 @@ def main() -> int:
                 print(text)
             else:
                 print("Error: OpenAI API returned empty response", file=sys.stderr)
+                emit_trace(
+                    "provider_call_failed",
+                    action="provider_call",
+                    status="error",
+                    metadata={**trace_metadata, "reason": "empty_response"},
+                    environ=os.environ,
+                )
                 return 1
         else:
             # Tool-use loop: handle function_call responses from the API.
@@ -274,11 +330,26 @@ def main() -> int:
                     f"Error: tool-use loop hit max iterations ({MAX_TOOL_ITERATIONS})",
                     file=sys.stderr,
                 )
+                emit_trace(
+                    "provider_call_failed",
+                    action="provider_call",
+                    status="error",
+                    metadata={**trace_metadata, "reason": "tool_iteration_limit"},
+                    environ=os.environ,
+                )
                 return 1
     except Exception as exc:
         print(f"Error: OpenAI API call failed: {exc}", file=sys.stderr)
+        emit_trace(
+            "provider_call_failed",
+            action="provider_call",
+            status="error",
+            metadata={**trace_metadata, "reason": str(type(exc).__name__)},
+            environ=os.environ,
+        )
         return 1
 
+    emit_trace("provider_call_succeeded", action="provider_call", metadata=trace_metadata, environ=os.environ)
     return 0
 
 

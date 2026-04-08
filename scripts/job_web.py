@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import binascii
 import copy
 import json
 import logging
@@ -22,7 +20,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +33,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import saved_portal_import
 from answer_refresh_state import load_answer_refresh_state, mark_answer_refresh_pending
-from app_paths import jobs_db_path
+from app_paths import jobs_db_path, logs_root, worker_commands_path, worker_pid_path, worker_state_path
 from application_submit_common import load_pending_user_input_for_submit_attempt, resolve_current_submit_artifacts
 from job_action_audit import build_action_process_info, extract_action_detail_json_from_headers
 from job_db import (
@@ -73,19 +71,16 @@ from job_db import (
     update_job_metrics,
     update_status,
 )
-from job_worker import COMMANDS_FILE as WORKER_COMMANDS_FILE
-from job_worker import PID_FILE as WORKER_PID_FILE
-from job_worker import STATE_FILE as WORKER_STATE_FILE
-from material_ingest import import_material_content
 from output_layout import default_role_submit_dir, role_submit_path
 from pipeline_draft_proof import draft_review_state
 from pipeline_orchestrator import approve_job, approve_job_failure_message, regenerate_job, reset_job_to_new
 from pipeline_reset_helpers import clear_restart_pipeline_artifacts
 from queue_review_summary import attach_queue_review_summary
 from repair_runtime import is_repair_supervisor_running
-from settings_store import load_bootstrap as load_user_bootstrap
-from settings_store import load_settings as load_user_settings
-from settings_store import save_settings as save_user_settings
+from runtime_entrypoints import python_script_command
+from runtime_policy import ensure_action_allowed
+from runtime_trace import configure_runtime_trace, emit_trace
+from web_settings_api import register_settings_routes
 
 # ── Database ─────────────────────────────────────────────────────────────
 
@@ -95,6 +90,18 @@ _QUEUE_CACHE_TTL_SECONDS = 10.0
 _QUEUE_CACHE_MAX_ENTRIES = 4096
 _queue_response_sync_cache: dict[tuple[object, ...], float] = {}
 _queue_review_summary_cache: dict[tuple[object, ...], tuple[float, dict]] = {}
+
+
+def _worker_pid_file() -> Path:
+    return worker_pid_path()
+
+
+def _worker_state_file() -> Path:
+    return worker_state_path()
+
+
+def _worker_commands_file() -> Path:
+    return worker_commands_path()
 
 
 def get_conn() -> sqlite3.Connection:
@@ -390,9 +397,10 @@ def is_worker_running() -> bool:
     global _worker_proc
     if _worker_proc and _worker_proc.poll() is None:
         return True
-    if WORKER_PID_FILE.exists():
+    worker_pid_file = _worker_pid_file()
+    if worker_pid_file.exists():
         try:
-            pid = int(WORKER_PID_FILE.read_text().strip())
+            pid = int(worker_pid_file.read_text().strip())
             os.kill(pid, 0)
             return True
         except (ValueError, OSError):
@@ -415,19 +423,32 @@ def start_workers(num_workers: int | None = None) -> None:
     if is_worker_running():
         log.info("Workers already running — skipping start")
         return
+    ensure_action_allowed(
+        "worker_control",
+        metadata={"surface": "web", "operation": "start"},
+        environ=os.environ,
+    )
     num_workers = _configured_num_workers
-    worker_script = str(SCRIPT_DIR / "job_worker.py")
+    env = os.environ.copy()
     # Don't pass --headless: workers use smart defaults (submit→headed, draft→headless)
-    cmd = ["uv", "run", "--project", str(PROJECT_ROOT), "python", worker_script, "--workers", str(num_workers)]
+    cmd = python_script_command(SCRIPT_DIR / "job_worker.py", "--workers", str(num_workers), environ=env)
     # Log worker stderr to a file so startup errors are visible (not DEVNULL)
-    _worker_log = PROJECT_ROOT / "jobs.db.worker.log"
+    _worker_log = logs_root(environ=env) / "jobs.db.worker.log"
+    _worker_log.parent.mkdir(parents=True, exist_ok=True)
     _worker_proc = subprocess.Popen(
         cmd,
         cwd=str(PROJECT_ROOT),
+        env=env,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=_worker_log.open("a"),  # noqa: SIM115 — Popen owns the fd
         start_new_session=True,
+    )
+    emit_trace(
+        "worker_control",
+        action="worker_control",
+        metadata={"surface": "web", "operation": "start", "workers": num_workers},
+        environ=env,
     )
     log.info("Started worker pool (PID %d, %d workers, log=%s)", _worker_proc.pid, num_workers, _worker_log)
 
@@ -440,6 +461,11 @@ def stop_workers() -> None:
     workers started independently (e.g. via CLI) are left alone.
     """
     global _worker_proc
+    ensure_action_allowed(
+        "worker_control",
+        metadata={"surface": "web", "operation": "stop"},
+        environ=os.environ,
+    )
     if _worker_proc and _worker_proc.poll() is None:
         try:
             os.killpg(os.getpgid(_worker_proc.pid), signal.SIGTERM)
@@ -455,13 +481,19 @@ def stop_workers() -> None:
             _worker_proc.wait(timeout=2)
         _worker_proc = None
         log.info("Worker pool stopped")
-    elif WORKER_PID_FILE.exists():
+    elif _worker_pid_file().exists():
         try:
-            pid = int(WORKER_PID_FILE.read_text().strip())
+            pid = int(_worker_pid_file().read_text().strip())
             os.kill(pid, signal.SIGTERM)
             log.info("Sent SIGTERM to worker PID %d", pid)
         except (ValueError, OSError, ProcessLookupError):
             pass
+    emit_trace(
+        "worker_control",
+        action="worker_control",
+        metadata={"surface": "web", "operation": "stop"},
+        environ=os.environ,
+    )
     # Fallback: kill any orphaned job_worker.py processes AND their spawned
     # claude auto-fix subprocesses that survived PID-based kill.
     _my_pid = os.getpid()
@@ -518,10 +550,11 @@ def stop_workers() -> None:
 
 def _read_worker_states() -> list[dict]:
     """Read worker state from the shared JSON file written by the worker pool."""
-    if not WORKER_STATE_FILE.exists():
+    worker_state_file = _worker_state_file()
+    if not worker_state_file.exists():
         return []
     try:
-        raw = WORKER_STATE_FILE.read_text(encoding="utf-8").strip()
+        raw = worker_state_file.read_text(encoding="utf-8").strip()
         if not raw:
             return []
         return json.loads(raw)
@@ -533,13 +566,14 @@ def _send_worker_command(cmd: dict) -> None:
     """Append a command to the worker commands file."""
     try:
         existing: list[dict] = []
-        if WORKER_COMMANDS_FILE.exists():
-            raw = WORKER_COMMANDS_FILE.read_text(encoding="utf-8").strip()
+        worker_commands_file = _worker_commands_file()
+        if worker_commands_file.exists():
+            raw = worker_commands_file.read_text(encoding="utf-8").strip()
             if raw:
                 data = json.loads(raw)
                 existing = data.get("commands", [])
         existing.append(cmd)
-        WORKER_COMMANDS_FILE.write_text(
+        worker_commands_file.write_text(
             json.dumps({"commands": existing}),
             encoding="utf-8",
         )
@@ -552,7 +586,7 @@ def _read_runtime_services() -> dict[str, object]:
     pause = get_repair_queue_pause(conn)
     return {
         "workers_running": is_worker_running(),
-        "repair_supervisor_running": is_repair_supervisor_running(project_root=PROJECT_ROOT),
+        "repair_supervisor_running": is_repair_supervisor_running(project_root=PROJECT_ROOT, environ=os.environ),
         "repair_queue_paused": pause is not None,
         "repair_queue_pause": pause,
     }
@@ -703,21 +737,6 @@ class _LegacySavedPortalImportRequest(SavedPortalImportRequest):
     portal: str
 
 
-class SaveSettingsRequest(BaseModel):
-    materials: dict[str, str] = Field(default_factory=dict)
-    providers: dict[str, str | bool | None] = Field(default_factory=dict)
-    credentials: dict[str, str | None] = Field(default_factory=dict)
-
-
-class ImportMaterialRequest(BaseModel):
-    material_key: str
-    text: str | None = None
-    source_url: str | None = None
-    file_name: str | None = None
-    content_type: str | None = None
-    content_base64: str | None = None
-
-
 def _import_saved_portal_jobs(
     conn: sqlite3.Connection,
     *,
@@ -830,6 +849,8 @@ def _backup_db(source_path: Path, backup_path: Path) -> None:
 async def lifespan(app: FastAPI):
     import atexit
 
+    configure_runtime_trace(environ=os.environ, replace=True)
+
     # Pre-migration backup — preserves last-known state for migration rollback.
     if DB_PATH.exists():
         _backup_db(DB_PATH, DB_PATH.with_suffix(".db.pre-migration"))
@@ -912,44 +933,7 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok", "worker_running": is_worker_running()}
 
-    @app.get("/api/bootstrap")
-    def bootstrap():
-        payload = load_user_bootstrap()
-        payload["worker_running"] = is_worker_running()
-        return payload
-
-    @app.get("/api/settings")
-    def get_settings():
-        return load_user_settings()
-
-    @app.post("/api/settings")
-    def save_settings(payload: SaveSettingsRequest):
-        try:
-            return save_user_settings(payload.model_dump())
-        except ValueError as exc:
-            raise HTTPException(400, str(exc)) from exc
-
-    @app.post("/api/settings/materials/import")
-    def import_material(payload: ImportMaterialRequest):
-        try:
-            content_bytes = None
-            if payload.content_base64 is not None:
-                content_bytes = base64.b64decode(payload.content_base64, validate=True)
-
-            imported_text = import_material_content(
-                text=payload.text,
-                source_url=payload.source_url,
-                file_name=payload.file_name,
-                content_type=payload.content_type,
-                content_bytes=content_bytes,
-            )
-            settings = save_user_settings({"materials": {payload.material_key: imported_text}})
-            return {
-                "settings": settings,
-                "bootstrap": load_user_bootstrap(),
-            }
-        except (ValueError, binascii.Error) as exc:
-            raise HTTPException(400, str(exc)) from exc
+    register_settings_routes(app, is_worker_running=is_worker_running)
 
     @app.post("/api/kill")
     def kill():
@@ -1818,16 +1802,14 @@ def create_app() -> FastAPI:
         notes = body.get("notes", "")
 
         # Build CLI args
-        cmd = [
-            "uv",
-            "run",
-            "python",
+        cmd = python_script_command(
             "scripts/generate_interview_prep.py",
             row["output_dir"],
             "--stage",
             stage,
             "--force",
-        ]
+            environ=os.environ,
+        )
         if interviewers:
             for line in interviewers.strip().splitlines():
                 line = line.strip()
@@ -1851,7 +1833,12 @@ def create_app() -> FastAPI:
             prep_dir.mkdir(parents=True, exist_ok=True)
             try:
                 proc = subprocess.Popen(
-                    cmd, cwd=str(PROJECT_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                    cmd,
+                    cwd=str(PROJECT_ROOT),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
                 )
                 generating_file.write_text(str(proc.pid))
                 stdout, stderr = proc.communicate(timeout=900)
@@ -2196,7 +2183,7 @@ def create_app() -> FastAPI:
             for f in sorted(search_dir.iterdir()):
                 if f.suffix in (".pdf", ".docx", ".txt") and f.name not in seen:
                     # Skip non-document txt files in root (e.g., jd_raw.md, cover_letter_text.txt)
-                    if search_dir == base and f.suffix == ".txt" and "Jerrison" not in f.name:
+                    if search_dir == base and f.suffix == ".txt" and "Candidate" not in f.name:
                         continue
                     files.append({"name": f.name, "type": f.suffix[1:]})
                     seen.add(f.name)

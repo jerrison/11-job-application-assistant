@@ -52,13 +52,14 @@ def test_build_payload_marks_board_breezy(tmp_path):
             autofill,
             "parse_master_resume",
             return_value=SimpleNamespace(
-                first_name="Jerrison",
-                last_name="Li",
-                email="jerrison@example.com",
+                first_name="Candidate",
+                last_name="Name",
+                full_name="Candidate Name",
+                email="candidate@example.com",
                 phone="555-555-5555",
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrisonli/",
-                website="https://jerrison.li",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
             ),
         ),
         mock.patch.object(
@@ -66,8 +67,8 @@ def test_build_payload_marks_board_breezy(tmp_path):
             "parse_application_profile",
             return_value=SimpleNamespace(
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrisonli/",
-                website="https://jerrison.li",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
                 gender="Male",
                 veteran_status="I am not a protected veteran",
                 disability_status="No, I do not have a disability and have not had one in the past",
@@ -83,7 +84,7 @@ def test_build_payload_marks_board_breezy(tmp_path):
     assert payload["board"] == "breezy"
     assert any(step["kind"] == "file" for step in payload["steps"])
     assert any(
-        step["field_name"] == "full_name" and step["value"] == "Jerrison Li"
+        step["field_name"] == "full_name" and step["value"] == "Candidate Name"
         for step in payload["steps"]
     )
 
