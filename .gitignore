@@ -1,0 +1,54 @@
+.venv/
+.env
+.env.local
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.claude/
+.coverage
+htmlcov/
+
+# Local caches and helper state
+.uv-cache/
+.playwright-cli/
+.playwright-browsers/
+.playwright-trueup/
+.playwright-trueup.lock
+.playwright-linkedin/
+.playwright-linkedin-home/
+.playwright-linkedin.lock
+.playwright-mcp/
+.bullets_cache.json
+.story_terms_cache.json
+.master_resume_sync_state.json
+.work_stories_sync_state.json
+.candidate_context_sync_state.json
+.superpowers/
+.worktrees/
+
+# Logs and temp files
+tmp/
+logs/
+*.log
+
+# User-owned runtime data
+output/
+submit/
+content/
+documents/
+jobs.db
+jobs.db-*
+jobs.db.*
+master_resume.md
+work_stories.md
+candidate_context.md
+application_profile.md
+runtime-home/
+profiles/
+app-data/
+
+# Defensive ignore for accidental runtime writes inside source folders
+scripts/jobs.db
+scripts/master_resume.md

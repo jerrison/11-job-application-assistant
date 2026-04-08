@@ -1,0 +1,99 @@
+[project]
+name = "job-application-assistant"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "python-docx>=1.1",
+    "lxml>=5.0",
+    "scrapling>=0.4",
+    "pypdf>=5.0",
+    "pdfplumber>=0.11",
+    "reportlab>=4.0",
+    "playwright>=1.58.0",
+    "steel-sdk>=0.1",
+    "textual>=8.1.1",
+    "Pillow>=11.0",
+    "python-jobspy>=1.1",
+    "openai>=2.29.0",
+    "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+fetchers = [
+    "scrapling[fetchers]",
+]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "jinja2>=3.1",
+    "markdown>=3.7",
+]
+
+[dependency-groups]
+dev = [
+    "fastapi>=0.115",
+    "jinja2>=3.1",
+    "markdown>=3.7",
+    "pytest>=9.0.2",
+    "pytest-cov>=6.0",
+    "ruff>=0.11",
+    "uvicorn[standard]>=0.34",
+]
+
+# --- Ruff Linting ---
+# Mechanical enforcement: agents and humans get the same guardrails.
+# Error messages are written to be agent-readable remediation instructions.
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import ordering)
+    "UP",   # pyupgrade (modernize syntax)
+    "B",    # flake8-bugbear (common bugs)
+    "SIM",  # flake8-simplify
+    "PIE",  # flake8-pie (misc lints)
+    "T20",  # flake8-print (no print() in library code)
+    "RET",  # flake8-return
+    "ICN",  # flake8-import-conventions
+]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "E402",   # module-level import not at top — scripts use sys.path setup before imports
+    "T201",   # print() — scripts use print for CLI output
+    "RET504", # unnecessary assignment before return — readability preference
+    "SIM102", # nested if → combined if — readability preference
+    "SIM105", # try/except/pass → contextlib.suppress — style preference
+    "SIM108", # ternary instead of if/else — readability preference
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["T201", "B011", "SIM"]  # tests can print, use assert True, be verbose
+
+[tool.ruff.lint.isort]
+known-first-party = ["scripts"]
+
+# --- Coverage ---
+# Track test coverage to identify untested code paths.
+# The coverage report tells agents exactly which lines need testing.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=scripts --cov-report=term-missing --cov-report=html:htmlcov --no-cov-on-fail"
+
+[tool.coverage.run]
+source = ["scripts"]
+omit = [
+    "scripts/job_tui.py",      # TUI requires terminal
+    "scripts/job_web.py",      # web server, tested via TestClient
+    "scripts/draft_web.py",    # web server, tested via TestClient
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# Start with a baseline — raise this as coverage improves
+fail_under = 0

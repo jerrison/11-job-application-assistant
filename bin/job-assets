@@ -1,0 +1,1639 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import os
+import shutil
+import signal
+import sqlite3
+import subprocess
+import sys
+from datetime import UTC
+from pathlib import Path
+
+SCRIPT_PATH = Path(__file__).resolve()
+REPO_ROOT = SCRIPT_PATH.parent.parent
+MAN_ROOT = REPO_ROOT / "man"
+MAN1_ROOT = MAN_ROOT / "man1"
+SCRIPTS_ROOT = REPO_ROOT / "scripts"
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+
+import saved_portal_import  # noqa: E402
+from app_paths import jobs_db_path, materials_root  # noqa: E402
+from browser_runtime import (  # noqa: E402
+    JOB_ASSETS_AEROSPACE_WORKSPACE_ENV,
+    steel_api_key,
+    steel_base_url,
+    steel_local_mode,
+    steel_solve_captcha,
+    steel_use_proxy,
+    submit_browser_aerospace_workspace,
+    submit_browser_profile_dir,
+    submit_browser_provider,
+    submit_slow_mo_ms,
+    submit_type_delay_ms,
+    submit_viewport,
+)
+from entrypoint_guard import abort_if_recursive_entrypoints_forbidden  # noqa: E402
+from llm_provider import (  # noqa: E402
+    VALID_PROVIDERS,
+    automation_provider_chain,
+    default_active_provider,
+    effective_provider_settings,
+)
+from project_env import PROJECT_ENV_FILES, load_project_env  # noqa: E402
+from worker_subprocess import run_worker_subprocess  # noqa: E402
+
+load_project_env()
+
+COMMAND_NAME = Path(sys.argv[0]).name
+KNOWN_COMMANDS = {
+    "add",
+    "apply",
+    "batch",
+    "doctor",
+    "draft",
+    "import",
+    "install",
+    "linkedin-login",
+    "man",
+    "notion-sync",
+    "parallel",
+    "pipeline",
+    "sync",
+    "prioritize",
+    "profile",
+    "queue",
+    "report",
+    "retry",
+    "skip",
+    "status",
+    "submit",
+    "tui",
+    "web",
+    "worker",
+}
+PROVIDER_ALIASES = {
+    "job-assets-codex": "codex",
+    "job-assets-claude": "claude",
+    "job-assets-gemini": "gemini",
+}
+OPTIONS_WITH_VALUES = {
+    "--bin-dir",
+    "--board",
+    "--browser-provider",
+    "--format",
+    "--limit",
+    "--man-dir",
+    "--max-parallel",
+    "--output-dir",
+    "--priority",
+    "--provider",
+    "--saved-portal",
+    "--search",
+    "--since",
+    "--source",
+    "--status",
+    "--wait-for-email",
+    "--workers",
+}
+_CLI_BOOTSTRAP_ENV = "JOB_ASSETS_CLI_BOOTSTRAPPED"
+
+
+def saved_portal_choices() -> tuple[str, ...]:
+    return tuple(spec.key for spec in saved_portal_import.list_saved_portals())
+
+
+def saved_portal_choices_text() -> str:
+    return "|".join(saved_portal_choices())
+
+
+def default_provider() -> str:
+    return PROVIDER_ALIASES.get(COMMAND_NAME, default_active_provider())
+
+
+def default_max_parallel() -> int:
+    for key in ("JOB_ASSETS_MAX_PARALLEL", "MAX_PARALLEL"):
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            continue
+        try:
+            return max(int(raw), 1)
+        except ValueError:
+            continue
+    cpu_count = os.cpu_count() or 4
+    return max(4, min(cpu_count * 2, 16))
+
+
+def _format_utc_timestamp(ts: str | None) -> str:
+    if not ts:
+        return "-"
+    if ts.endswith(" UTC"):
+        return ts
+    return f"{ts} UTC"
+
+
+def default_man_topic() -> str:
+    return COMMAND_NAME if COMMAND_NAME in {"job-assets-codex", "job-assets-claude"} else "job-assets"
+
+
+def command_prefix() -> str:
+    return COMMAND_NAME
+
+
+def application_profile_path() -> Path:
+    return materials_root() / "application_profile.md"
+
+
+def preprocess_argv(argv: list[str]) -> list[str]:
+    if not argv:
+        return argv
+    first = argv[0]
+    if first == "help":
+        return ["--help"]
+    if first in {"-h", "--help"}:
+        return argv
+
+    positional_index = first_positional_index(argv)
+    if positional_index is None:
+        return argv
+
+    command = argv[positional_index]
+    if command in KNOWN_COMMANDS:
+        if positional_index == 0:
+            return argv
+        return [command, *argv[:positional_index], *argv[positional_index + 1 :]]
+
+    return ["pipeline", *argv]
+
+
+def first_positional_index(argv: list[str]) -> int | None:
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--":
+            return index + 1 if index + 1 < len(argv) else None
+        if token.startswith("--"):
+            option = token.split("=", 1)[0]
+            if "=" not in token and option in OPTIONS_WITH_VALUES:
+                index += 2
+            else:
+                index += 1
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return index
+    return None
+
+
+def repo_command(path: str) -> str:
+    return str(REPO_ROOT / path)
+
+
+def python_script_command(path: str) -> list[str]:
+    script = repo_command(path)
+    if shutil.which("uv"):
+        return ["uv", "run", "--project", str(REPO_ROOT), "python", script]
+    return [sys.executable, script]
+
+
+def run_command(cmd: list[str], env: dict[str, str] | None = None) -> int:
+    completed = run_worker_subprocess(cmd, cwd=REPO_ROOT, env=env)
+    return completed.returncode
+
+
+def add_provider_option(parser: argparse.ArgumentParser, *, default: str) -> None:
+    parser.add_argument(
+        "--provider",
+        choices=VALID_PROVIDERS,
+        default=default,
+        help=f"LLM provider to use (default: {default})",
+    )
+
+
+def install_link(src: Path, dest: Path) -> None:
+    if dest.is_symlink() or dest.exists():
+        dest.unlink()
+    dest.symlink_to(src)
+
+
+def cmd_apply(args: argparse.Namespace) -> int:
+    cmd = ["bash", repo_command("apply.sh"), "--provider", args.provider]
+    if args.skip_sync:
+        cmd.append("--skip-sync")
+    cmd.append(args.jd_source)
+    if args.company:
+        cmd.append(args.company)
+    if args.role:
+        cmd.append(args.role)
+    return run_command(cmd)
+
+
+def cmd_pipeline(args: argparse.Namespace) -> int:
+    cmd = [*python_script_command("scripts/job_assets_pipeline.py"), "--provider", args.provider]
+    if args.skip_sync:
+        cmd.append("--skip-sync")
+    if args.browser_provider:
+        cmd.extend(["--browser-provider", args.browser_provider])
+    if args.payload_only:
+        cmd.append("--payload-only")
+    if args.headless:
+        cmd.append("--headless")
+    if args.submit:
+        cmd.append("--submit")
+    if args.reapply:
+        cmd.append("--reapply")
+    cmd.append(args.jd_source)
+    if args.company:
+        cmd.append(args.company)
+    if args.role:
+        cmd.append(args.role)
+    return run_command(cmd)
+
+
+def cmd_submit(args: argparse.Namespace) -> int:
+    cmd = [*python_script_command("scripts/submit_application.py"), args.target]
+    if args.payload_only:
+        cmd.append("--payload-only")
+    if args.headless:
+        cmd.append("--headless")
+    if args.submit:
+        cmd.append("--submit")
+    if args.reapply:
+        cmd.append("--reapply")
+    if args.provider:
+        cmd.extend(["--provider", args.provider])
+    env = os.environ.copy()
+    if args.browser_provider:
+        env["JOB_ASSETS_BROWSER_PROVIDER"] = args.browser_provider
+    return run_command(cmd, env=env)
+
+
+def cmd_batch(args: argparse.Namespace) -> int:
+    cmd = [
+        "bash",
+        repo_command("batch_apply.sh"),
+        "--provider",
+        args.provider,
+        "--max-parallel",
+        str(args.max_parallel),
+    ]
+    if args.dry_run:
+        cmd.append("--dry-run")
+    env = os.environ.copy()
+    env["JOB_ASSETS_MAX_PARALLEL"] = str(args.max_parallel)
+    return run_command(cmd, env=env)
+
+
+def cmd_parallel(args: argparse.Namespace) -> int:
+    cmd = [
+        "bash",
+        repo_command("parallel_apply.sh"),
+        "--provider",
+        args.provider,
+        "--max-parallel",
+        str(args.max_parallel),
+    ]
+    if args.dry_run:
+        cmd.append("--dry-run")
+    if args.build_only:
+        cmd.append("--build-only")
+    env = os.environ.copy()
+    env["JOB_ASSETS_MAX_PARALLEL"] = str(args.max_parallel)
+    env["MAX_PARALLEL"] = str(args.max_parallel)
+    return run_command(cmd, env=env)
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    providers = {}
+    for provider in ("gemini", "codex", "claude"):
+        providers[provider] = shutil.which(provider)
+    claude_settings = effective_provider_settings("claude")
+    codex_settings = effective_provider_settings("codex")
+    gemini_settings = effective_provider_settings("gemini")
+    gemini_flash_settings = effective_provider_settings("gemini-flash")
+
+    print(f"command:        {COMMAND_NAME}")
+    print(f"repo:           {REPO_ROOT}")
+    print(f"default provider: {default_provider()}")
+    print(f"provider chain: {','.join(automation_provider_chain())}")
+    print(f"gemini defaults: model={gemini_settings['model']}")
+    print(f"gemini-flash defaults: model={gemini_flash_settings['model']}")
+    print(f"claude defaults: model={claude_settings['model']} effort={claude_settings['effort']}")
+    print(
+        "claude exec mode: "
+        f"permission={claude_settings['permission_mode']} "
+        f"settings={claude_settings['setting_sources']} "
+        f"session_persistence={'off' if claude_settings['no_session_persistence'] not in {'0', 'false', 'False'} else 'on'} "
+        f"slash_commands={'off' if claude_settings['disable_slash_commands'] not in {'0', 'false', 'False'} else 'on'} "
+        f"strict_mcp={'on' if claude_settings['strict_mcp_config'] not in {'0', 'false', 'False'} else 'off'}"
+    )
+    print(
+        f"codex defaults: model={codex_settings['model']} reasoning={codex_settings['reasoning_effort']}"
+    )
+    print(
+        f"codex exec mode: approval={codex_settings['approval_policy']} sandbox={codex_settings['sandbox_mode']}"
+    )
+    print(
+        "codex exec isolation: temp CODEX_HOME with auth, AGENTS, prompts, skills + config "
+        "(global MCP servers preserved)"
+    )
+    print(f"provider timeout (submit answers, s): {claude_settings['timeout_seconds']}")
+    print(f"provider timeout (asset generation, s): {claude_settings['asset_timeout_seconds']}")
+    print(f"default max parallel jobs: {default_max_parallel()}")
+    primary_timeout = claude_settings["asset_primary_timeout_seconds"]
+    fallback_provider = claude_settings["asset_fallback_provider"] or "disabled"
+    if primary_timeout in {"", "0"}:
+        print("claude primary asset timeout before fallback (s): disabled")
+    else:
+        print(f"claude primary asset timeout before fallback (s): {primary_timeout}")
+    print(f"claude asset fallback provider: {fallback_provider}")
+    if codex_settings["profile"]:
+        print(f"codex profile override: {codex_settings['profile']}")
+        print("codex profile-backed runs defer core execution settings to that profile unless explicit CODEX_* env overrides are set")
+    if gemini_settings["extra_args"]:
+        print(f"gemini extra args: {gemini_settings['extra_args']}")
+    if claude_settings["extra_args"]:
+        print(f"claude extra args: {claude_settings['extra_args']}")
+    if codex_settings["extra_args"]:
+        print(f"codex extra args: {codex_settings['extra_args']}")
+    print(f"job-assets on PATH: {shutil.which('job-assets') or 'not found'}")
+    print(f"job-assets-codex on PATH: {shutil.which('job-assets-codex') or 'not found'}")
+    print(f"job-assets-claude on PATH: {shutil.which('job-assets-claude') or 'not found'}")
+    print(f"job-assets-gemini on PATH: {shutil.which('job-assets-gemini') or 'not found'}")
+    print(f"man page dir:   {MAN1_ROOT}")
+    print(f"application profile: {application_profile_path()} ({'present' if application_profile_path().exists() else 'missing'})")
+    env_files = [str(path) for path in PROJECT_ENV_FILES if path.exists()]
+    print(f"local env files: {', '.join(env_files) if env_files else 'none'}")
+    print(f"submit browser provider: {submit_browser_provider()}")
+    print(f"submit browser profile: {submit_browser_profile_dir()}")
+    print(f"submit slow mo (headed ms): {submit_slow_mo_ms(False)}")
+    print(f"submit type delay (ms): {submit_type_delay_ms()}")
+    print(f"submit viewport: {submit_viewport()}")
+    print(f"steel base url: {steel_base_url()}")
+    print(f"steel local mode: {steel_local_mode()}")
+    print(f"steel use proxy: {steel_use_proxy()}")
+    print(f"steel solve captcha: {steel_solve_captcha()}")
+    print(f"steel api key: {'configured' if steel_api_key() else 'missing'}")
+    for provider, location in providers.items():
+        print(f"{provider}:         {location or 'not found'}")
+    return 0
+
+
+def cmd_profile(args: argparse.Namespace) -> int:
+    path = application_profile_path()
+    if args.profile_action == "path":
+        print(path)
+        return 0
+    print(path.read_text(encoding="utf-8"), end="")
+    return 0
+
+
+def cmd_notion_sync(args: argparse.Namespace) -> int:
+    cmd = [
+        sys.executable,
+        repo_command("scripts/notion_sync.py"),
+        args.target,
+        "--wait-for-email",
+        str(args.wait_for_email),
+    ]
+    if args.allow_pending_email:
+        cmd.append("--allow-pending-email")
+    if not args.strict_token:
+        cmd.append("--no-fail-on-missing-token")
+    return run_command(cmd)
+
+
+def cmd_install(args: argparse.Namespace) -> int:
+    bin_dir = Path(os.path.expanduser(args.bin_dir)).resolve()
+    man_dir = Path(os.path.expanduser(args.man_dir)).resolve()
+    commands = ["job-assets", "job-assets-codex", "job-assets-claude"]
+    man_pages = ["job-assets.1", "job-assets-codex.1", "job-assets-claude.1"]
+
+    if args.dry_run:
+        print(f"Would install commands into: {bin_dir}")
+        for name in commands:
+            print(f"  {bin_dir / name} -> {SCRIPT_PATH}")
+        if not args.no_man:
+            print(f"Would install man pages into: {man_dir}")
+            for page in man_pages:
+                print(f"  {man_dir / page} -> {MAN1_ROOT / page}")
+        return 0
+
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    for name in commands:
+        install_link(SCRIPT_PATH, bin_dir / name)
+
+    if not args.no_man:
+        man_dir.mkdir(parents=True, exist_ok=True)
+        for page in man_pages:
+            install_link(MAN1_ROOT / page, man_dir / page)
+
+    print(f"Installed commands into {bin_dir}")
+    if not args.no_man:
+        print(f"Installed man pages into {man_dir}")
+    print("Try: job-assets --help")
+    print("Try: man job-assets")
+    return 0
+
+
+def cmd_man(args: argparse.Namespace) -> int:
+    topic = args.topic or default_man_topic()
+    env = os.environ.copy()
+    current = env.get("MANPATH", "")
+    env["MANPATH"] = f"{MAN_ROOT}:{current}" if current else str(MAN_ROOT)
+    return run_command(["man", topic], env=env)
+
+
+def _open_job_db() -> sqlite3.Connection:
+    """Open (and initialise) the shared job queue database."""
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import init_db  # noqa: E402
+    return init_db(jobs_db_path())
+
+
+def _resolve_job(conn, target: str) -> dict:
+    """Resolve a target (job ID or URL) to a job dict. Exits on failure."""
+    from job_db import get_job
+    # Try as integer job ID first
+    try:
+        job_id = int(target)
+        job = get_job(conn, job_id)
+        if job:
+            return job
+    except ValueError:
+        pass
+    # Try as URL
+    row = conn.execute("SELECT * FROM jobs WHERE url = ? OR canonical_url = ?", (target, target)).fetchone()
+    if row:
+        return dict(row)
+    print(f"Job not found: {target}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _format_age(timestamp_str: str | None) -> str:
+    """Format a timestamp string as a human-readable age (e.g., '2h ago', '3d ago')."""
+    if not timestamp_str:
+        return "?"
+    from datetime import datetime
+    try:
+        # SQLite CURRENT_TIMESTAMP format
+        dt = datetime.fromisoformat(timestamp_str.replace(" ", "T"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        delta = datetime.now(UTC) - dt
+        seconds = int(delta.total_seconds())
+        if seconds < 60:
+            return f"{seconds}s ago"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        return f"{days}d ago"
+    except (ValueError, TypeError):
+        return "?"
+
+
+# ── Draft subcommands ────────────────────────────────────────────────────────
+
+
+def cmd_draft_list(args: argparse.Namespace) -> int:
+    conn = _open_job_db()
+    rows = conn.execute(
+        "SELECT id, company, role_title, board, updated_at FROM jobs WHERE status = 'draft' ORDER BY updated_at DESC"
+    ).fetchall()
+    if not rows:
+        print("No drafts pending review.")
+        conn.close()
+        return 0
+    header = f"{'ID':>5}  {'Company':<20}  {'Role':<30}  {'Board':<12}  {'Age'}"
+    print(header)
+    print("-" * len(header))
+    for row in rows:
+        age = _format_age(row["updated_at"])
+        print(
+            f"{row['id']:>5}  {(row['company'] or '?'):<20}  "
+            f"{(row['role_title'] or '?'):<30}  {(row['board'] or '?'):<12}  {age}"
+        )
+    conn.close()
+    return 0
+
+
+def cmd_draft_review(args: argparse.Namespace) -> int:
+    conn = _open_job_db()
+    job = _resolve_job(conn, args.target)
+    if not job["output_dir"]:
+        print(f"Job #{job['id']} has no output directory.", file=sys.stderr)
+        conn.close()
+        return 1
+    out_dir = Path(job["output_dir"])
+    summary_path = out_dir / "draft_summary.md"
+
+    if not summary_path.exists():
+        print(f"No draft summary found at {summary_path}", file=sys.stderr)
+        conn.close()
+        return 1
+
+    if args.edit:
+        conn.close()
+        editor = os.environ.get("EDITOR", "vi")
+        os.execvp(editor, [editor, str(summary_path)])
+    else:
+        print(summary_path.read_text(encoding="utf-8"))
+        # Show image paths
+        for img in out_dir.glob("*.png"):
+            print(f"\nImage: {img}")
+    conn.close()
+    return 0
+
+
+def cmd_draft_approve(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    conn = _open_job_db()
+    job = _resolve_job(conn, args.target)
+    from pipeline_orchestrator import approve_job, approve_job_failure_message
+    if not approve_job(conn, job["id"]):
+        print(approve_job_failure_message(conn, job["id"]), file=sys.stderr)
+        conn.close()
+        return 1
+    print(f"Job #{job['id']} approved — worker will submit it.")
+    conn.close()
+    return 0
+
+
+def cmd_draft_reject(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    conn = _open_job_db()
+    job = _resolve_job(conn, args.target)
+    from job_db import update_status
+    update_status(conn, job["id"], "stopped", error_message="Draft rejected via CLI")
+    print(f"Draft #{job['id']} rejected -> stopped.")
+    conn.close()
+    return 0
+
+
+def cmd_draft_regenerate(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    conn = _open_job_db()
+    job = _resolve_job(conn, args.target)
+    if not job["output_dir"]:
+        print(f"Job #{job['id']} has no output directory.", file=sys.stderr)
+        conn.close()
+        return 1
+    out_dir = Path(job["output_dir"])
+
+    from draft_manager import apply_draft_edits, classify_draft_edits
+
+    original_path = out_dir / "draft_summary.original.md"
+    edited_path = out_dir / "draft_summary.md"
+    if not original_path.exists() or not edited_path.exists():
+        print(f"Draft summary files not found in {out_dir}", file=sys.stderr)
+        conn.close()
+        return 1
+
+    original = original_path.read_text(encoding="utf-8")
+    edited = edited_path.read_text(encoding="utf-8")
+    changes = classify_draft_edits(original, edited)
+
+    if changes:
+        result = apply_draft_edits(out_dir, changes)
+        print(f"Detected {len(changes)} change(s).")
+        if "fix_report_path" in result:
+            print(f"Fix report: {result['fix_report_path']}")
+            from pipeline_orchestrator import auto_fix
+            auto_fix(
+                {"fix_report": result["fix_report_path"], "board": job["board"]},
+                job["board"],
+            )
+
+    from pipeline_orchestrator import process_job, regenerate_job
+    if regenerate_job(conn, job["id"]):
+        print(f"Regenerating draft #{job['id']}...")
+        process_job(conn, job["id"])
+    else:
+        print(f"Job #{job['id']} is not in draft status.", file=sys.stderr)
+        conn.close()
+        return 1
+    conn.close()
+    return 0
+
+
+def cmd_draft_serve(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    try:
+        from draft_web import create_app
+    except ImportError:
+        print("Web dependencies not installed. Run: uv pip install -e '.[web]'", file=sys.stderr)
+        return 1
+    app = create_app()
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    return 0
+
+
+def cmd_add(args: argparse.Namespace) -> int:
+    if args.saved_portal and args.urls:
+        print(
+            f"Use positional URLs or --saved-portal {saved_portal_choices_text()}, not both.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.saved_portal:
+        try:
+            result = _import_saved_portal(args.saved_portal, priority=args.priority, provider=args.provider)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Saved portal import failed: {exc}", file=sys.stderr)
+            return 1
+        _print_saved_portal_summary(args.saved_portal, result)
+        return 0 if result.get("status") == "ok" else 1
+
+    if not args.urls:
+        print(
+            f"Provide one or more URLs, or use --saved-portal {saved_portal_choices_text()}.",
+            file=sys.stderr,
+        )
+        return 2
+
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import add_job, init_db
+
+    conn = init_db(jobs_db_path())
+    try:
+        for url in args.urls:
+            job_id = add_job(conn, url, priority=args.priority, provider=args.provider)
+            print(f"Queued job {job_id}: {url}")
+    finally:
+        conn.close()
+    return 0
+
+
+def _import_saved_portal(saved_portal: str, *, priority: int, provider: str | None) -> dict:
+    _maybe_reexec_saved_portal_with_uv()
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    module = saved_portal_import.load_saved_portal_module(saved_portal)
+    conn = _open_job_db()
+    try:
+        return module.import_saved_jobs(conn, priority=priority, provider=provider)
+    finally:
+        conn.close()
+
+
+def _maybe_reexec_saved_portal_with_uv() -> None:
+    if os.environ.get("JOB_ASSETS_SAVED_PORTAL_BOOTSTRAPPED") == "1":
+        return
+    if importlib.util.find_spec("playwright") is not None:
+        return
+    if not shutil.which("uv"):
+        return
+
+    env = os.environ.copy()
+    env["JOB_ASSETS_SAVED_PORTAL_BOOTSTRAPPED"] = "1"
+    cmd = ["uv", "run", "--project", str(REPO_ROOT), "python", str(SCRIPT_PATH), *sys.argv[1:]]
+    raise SystemExit(subprocess.call(cmd, cwd=REPO_ROOT, env=env))
+
+
+def _maybe_reexec_cli_with_uv() -> None:
+    if os.environ.get(_CLI_BOOTSTRAP_ENV) == "1":
+        return
+    if importlib.util.find_spec("pdfplumber") is not None:
+        return
+    if not shutil.which("uv"):
+        return
+
+    env = os.environ.copy()
+    env[_CLI_BOOTSTRAP_ENV] = "1"
+    cmd = ["uv", "run", "--project", str(REPO_ROOT), "python", str(SCRIPT_PATH), *sys.argv[1:]]
+    raise SystemExit(subprocess.call(cmd, cwd=REPO_ROOT, env=env))
+
+
+def _print_saved_portal_summary(saved_portal: str, result: dict) -> None:
+    label = saved_portal_import.get_saved_portal(saved_portal).label
+    status = result.get("status", "unknown")
+    scraped = result.get("scraped", 0)
+    resolved = result.get("resolved", 0)
+    added = result.get("added", 0)
+    duplicates = result.get("duplicates", 0)
+    unresolved = result.get("skipped_unresolved", 0)
+    errors = result.get("errors", 0)
+    print(
+        f"{label} import: status={status} scraped={scraped} resolved={resolved} "
+        f"added={added} duplicates={duplicates} unresolved={unresolved} errors={errors}"
+    )
+    message = str(result.get("message") or "").strip()
+    if message:
+        print(f"Message: {message}")
+
+
+def cmd_queue(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import get_status_counts, init_db, query_jobs
+    conn = init_db(jobs_db_path())
+    counts = get_status_counts(conn)
+    if counts:
+        summary = ", ".join(f"{s}: {c}" for s, c in sorted(counts.items()))
+        print(f"Queue summary: {summary}")
+        print()
+    jobs = query_jobs(
+        conn,
+        status=args.status,
+        board=args.board,
+        source=args.source,
+        search=args.search,
+        limit=args.limit,
+    )
+    if not jobs:
+        print("No jobs found.")
+        conn.close()
+        return 0
+    # Column-aligned table output
+    header = (
+        f"{'ID':>5}  {'Status':<18}  {'Entered UTC':<23}  {'Board':<12}  "
+        f"{'Company':<20}  {'Role':<30}  URL"
+    )
+    print(header)
+    print("-" * len(header))
+    for j in jobs:
+        print(
+            f"{j['id']:>5}  {j['status']:<18}  {_format_utc_timestamp(j.get('status_entered_at')):<23}  "
+            f"{(j['board'] or '-'):<12}  "
+            f"{(j['company'] or '-'):<20}  {(j['role_title'] or '-'):<30}  {j['url']}"
+        )
+    conn.close()
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import get_job, get_job_timeline, init_db
+    conn = init_db(jobs_db_path())
+    job = get_job(conn, args.job_id)
+    if not job:
+        print(f"Job {args.job_id} not found.")
+        conn.close()
+        return 1
+    print(f"Job {job['id']}")
+    print(f"  URL:          {job['url']}")
+    print(f"  Status:       {job['status']}")
+    print(f"  Board:        {job['board'] or '-'}")
+    print(f"  Company:      {job['company'] or '-'}")
+    print(f"  Role:         {job['role_title'] or '-'}")
+    print(f"  Provider:     {job['provider'] or '-'}")
+    print(f"  Priority:     {job['priority']}")
+    print(f"  Source:       {job['source'] or '-'}")
+    print(f"  Output dir:   {job['output_dir'] or '-'}")
+    print(f"  Error:        {job['error_message'] or '-'}")
+    print(f"  Fix attempts: {job['fix_attempts']}")
+    print(f"  Status since: {_format_utc_timestamp(job.get('status_entered_at'))}")
+    print(f"  Created:      {_format_utc_timestamp(job.get('created_at'))}")
+    print(f"  Updated:      {_format_utc_timestamp(job.get('updated_at'))}")
+    print(f"  Completed:    {_format_utc_timestamp(job.get('completed_at'))}")
+    timeline = get_job_timeline(conn, args.job_id)
+    if timeline:
+        print()
+        print("Timeline:")
+        for ev in timeline:
+            detail = ev["detail"] or ""
+            print(f"  [{_format_utc_timestamp(ev['created_at'])}] {ev['event_type']}: {detail}")
+    conn.close()
+    return 0
+
+
+def cmd_retry(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import get_job, init_db, update_status
+    conn = init_db(jobs_db_path())
+    job = get_job(conn, args.job_id)
+    if not job:
+        print(f"Job {args.job_id} not found.")
+        conn.close()
+        return 1
+    update_status(conn, args.job_id, "queued", error_message=None)
+    print(f"Job {args.job_id} re-queued for retry.")
+    conn.close()
+    return 0
+
+
+def cmd_skip(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import get_job, init_db, update_status
+    conn = init_db(jobs_db_path())
+    job = get_job(conn, args.job_id)
+    if not job:
+        print(f"Job {args.job_id} not found.")
+        conn.close()
+        return 1
+    update_status(conn, args.job_id, "stopped", error_message="Manually skipped via CLI")
+    print(f"Job {args.job_id} marked as skipped.")
+    conn.close()
+    return 0
+
+
+def cmd_prioritize(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import get_job, init_db, log_event
+    conn = init_db(jobs_db_path())
+    job = get_job(conn, args.job_id)
+    if not job:
+        print(f"Job {args.job_id} not found.")
+        conn.close()
+        return 1
+    conn.execute("UPDATE jobs SET priority = 10 WHERE id = ?", (args.job_id,))
+    log_event(conn, args.job_id, "priority_change", detail="priority set to 10",
+              initiator="cli")
+    conn.commit()
+    print(f"Job {args.job_id} priority bumped to 10.")
+    conn.close()
+    return 0
+
+
+def _focused_aerospace_workspace(*, environ: dict[str, str] | None = None) -> str | None:
+    return submit_browser_aerospace_workspace(environ=environ)
+
+
+def cmd_worker(args: argparse.Namespace) -> int:
+    pid_file = jobs_db_path().with_name("jobs.db.worker.pid")
+    action = args.action
+
+    if action == "start":
+        cmd = python_script_command(SCRIPTS_ROOT / "job_worker.py")
+        cmd.extend(["--workers", str(args.workers)])
+        if args.headless:
+            cmd.append("--headless")
+        if args.auto_submit:
+            cmd.append("--auto-submit")
+        env = os.environ.copy()
+        aerospace_workspace = _focused_aerospace_workspace(environ=env)
+        if aerospace_workspace:
+            env[JOB_ASSETS_AEROSPACE_WORKSPACE_ENV] = aerospace_workspace
+        proc = subprocess.Popen(cmd, start_new_session=True, cwd=REPO_ROOT, env=env)
+        pid_file.write_text(str(proc.pid), encoding="utf-8")
+        print(f"Worker started (PID {proc.pid}).")
+        return 0
+
+    if action == "stop":
+        if not pid_file.exists():
+            print("No worker PID file found.")
+            return 1
+        pid = int(pid_file.read_text(encoding="utf-8").strip())
+        try:
+            os.kill(pid, signal.SIGTERM)
+            print(f"Sent SIGTERM to worker (PID {pid}).")
+            pid_file.unlink(missing_ok=True)
+        except ProcessLookupError:
+            print(f"Worker (PID {pid}) is not running.")
+            pid_file.unlink(missing_ok=True)
+        return 0
+
+    if action == "status":
+        if not pid_file.exists():
+            print("No worker running (no PID file).")
+            return 0
+        pid = int(pid_file.read_text(encoding="utf-8").strip())
+        try:
+            os.kill(pid, 0)
+            print(f"Worker is running (PID {pid}).")
+        except ProcessLookupError:
+            print(f"Worker (PID {pid}) is not running (stale PID file).")
+            pid_file.unlink(missing_ok=True)
+        return 0
+
+    return 1
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import (
+        get_all_job_metrics,
+        get_board_error_rates,
+        get_field_corrections,
+        get_job,
+        get_job_metrics,
+        get_jobs_processed_counts,
+        get_phase_avg_durations,
+        get_summary_stats,
+        init_db,
+        query_jobs,
+    )
+    conn = init_db(jobs_db_path())
+
+    # Single job detail mode
+    if hasattr(args, 'job') and args.job:
+        job = get_job(conn, args.job)
+        if not job:
+            print(f"Job {args.job} not found.")
+            conn.close()
+            return 1
+        print(f"Job {job['id']}: {job.get('company') or '?'} — {job.get('role_title') or '?'}")
+        print(f"  Status: {job['status']}  Board: {job.get('board') or '-'}  Provider: {job.get('provider') or '-'}")
+        m = get_job_metrics(conn, args.job)
+        if m:
+            dur_s = (m['total_duration_ms'] or 0) / 1000
+            print(f"  Duration: {dur_s:.0f}s  Fields: {m['fields_corrected']}/{m['total_fields']}  "
+                  f"Error Rate: {m['field_error_rate'] * 100:.0f}%")
+            print(f"  Fixes: {m['auto_fix_attempts']}  Interventions: {m['manual_interventions']}  "
+                  f"Retries: {m['retry_count']}  Phases: {m['phase_count']}")
+        phases = conn.execute(
+            "SELECT phase, duration_ms, exit_code FROM job_phase_durations WHERE job_id = ? ORDER BY id",
+            (args.job,),
+        ).fetchall()
+        if phases:
+            print("  Phases:")
+            for p in phases:
+                dur = f"{(p['duration_ms'] or 0) / 1000:.1f}s"
+                ec = f"exit={p['exit_code']}" if p['exit_code'] is not None else ""
+                print(f"    {p['phase']:15s}  {dur:>8s}  {ec}")
+        corrections = get_field_corrections(conn, args.job)
+        if corrections:
+            print(f"  Field Corrections ({len(corrections)}):")
+            for fc in corrections:
+                print(f"    [{fc['correction_source']}] {fc['field_name']}: "
+                      f"{(fc['original_value'] or '-')[:40]} → {(fc['corrected_value'] or '-')[:40]}")
+        conn.close()
+        return 0
+
+    # CSV export mode
+    if args.format == "csv":
+        import csv
+        import io
+        all_metrics = get_all_job_metrics(conn, board=args.board, status=args.status)
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow([
+            "job_id", "company", "role", "status", "board", "total_fields",
+            "fields_corrected", "error_rate", "manual_interventions",
+            "auto_fix_attempts", "total_duration_ms", "retry_count",
+        ])
+        for m in all_metrics:
+            writer.writerow([
+                m["job_id"], m.get("company", ""), m.get("role_title", ""),
+                m.get("status", ""), m.get("board", ""), m["total_fields"],
+                m["fields_corrected"], f"{m['field_error_rate']:.3f}",
+                m["manual_interventions"], m["auto_fix_attempts"],
+                m["total_duration_ms"], m["retry_count"],
+            ])
+        print(out.getvalue(), end="")
+        conn.close()
+        return 0
+
+    # JSON export mode
+    if args.format == "json":
+        kwargs: dict = {}
+        if args.status:
+            kwargs["status"] = args.status
+        if args.board:
+            kwargs["board"] = args.board
+        jobs = query_jobs(conn, **kwargs, limit=9999)
+        if args.since:
+            jobs = [j for j in jobs if j["created_at"] and j["created_at"] >= args.since]
+        print(json.dumps(jobs, indent=2, default=str))
+        conn.close()
+        return 0
+
+    # Default: summary + table
+    summary = get_summary_stats(conn, since=args.since)
+    processed = get_jobs_processed_counts(conn)
+
+    print("=== Job Pipeline Report ===")
+    print(f"Processed:  1h={processed['last_1h']}  24h={processed['last_24h']}  "
+          f"7d={processed['last_7d']}  all={processed['all_time']}")
+    print(f"Total: {summary['total']}  Submitted: {summary['submitted']}  "
+          f"Failed: {summary['failed']}  Attention: {summary['needs_attention']}")
+    print(f"Success Rate: {summary['success_rate'] * 100:.1f}%  "
+          f"Failure Rate: {summary['failure_rate'] * 100:.1f}%")
+    print(f"Intervention Rate: {summary['intervention_rate'] * 100:.1f}%  "
+          f"Avg Error Rate: {summary['avg_error_rate'] * 100:.1f}%")
+    dur_s = (summary['avg_duration_ms'] or 0) / 1000
+    print(f"Avg Duration: {dur_s:.0f}s")
+
+    phase_avgs = get_phase_avg_durations(conn)
+    if phase_avgs:
+        print("\nPhase Avg Durations:")
+        for phase in ("resolve", "generate", "submit", "fix", "retry", "post_submit"):
+            avg = phase_avgs.get(phase)
+            if avg is not None:
+                print(f"  {phase:15s}  {avg / 1000:.1f}s")
+
+    board_rates = get_board_error_rates(conn)
+    if board_rates:
+        print("\nBoard Error Rates:")
+        for board, rate in sorted(board_rates.items(), key=lambda x: x[1], reverse=True):
+            print(f"  {board:15s}  {rate * 100:.0f}%")
+
+    kwargs: dict = {}
+    if args.status:
+        kwargs["status"] = args.status
+    if args.board:
+        kwargs["board"] = args.board
+    jobs = query_jobs(conn, **kwargs, limit=9999)
+    if args.since:
+        jobs = [j for j in jobs if j["created_at"] and j["created_at"] >= args.since]
+    if jobs:
+        print(f"\n{'ID':>5}  {'Status':<18}  {'Board':<12}  {'Company':<20}  {'Role':<30}  {'Created'}")
+        print("-" * 105)
+        for j in jobs:
+            print(
+                f"{j['id']:>5}  {j['status']:<18}  {(j['board'] or '-'):<12}  "
+                f"{(j['company'] or '-'):<20}  {(j['role_title'] or '-'):<30}  {j['created_at']}"
+            )
+
+    conn.close()
+    return 0
+
+
+def cmd_tui(args: argparse.Namespace) -> int:
+    if args.clean:
+        # Kill orphaned workers and pipelines before launching
+        for pattern in ("job_worker", "apply.sh"):
+            subprocess.run(["pkill", "-f", pattern], capture_output=True)
+        # Reset stuck in-progress jobs
+        sys.path.insert(0, str(SCRIPTS_ROOT))
+        from job_db import init_db, reset_stale_jobs
+        conn = init_db(jobs_db_path())
+        reset = reset_stale_jobs(conn, stale_threshold_seconds=0)
+        conn.close()
+        if reset:
+            print(f"Reset {len(reset)} stuck job(s) to queued")
+    cmd = python_script_command(SCRIPTS_ROOT / "job_tui.py")
+    return run_command(cmd)
+
+
+def cmd_web(args: argparse.Namespace) -> int:
+    cmd = python_script_command(SCRIPTS_ROOT / "job_web.py")
+    cmd.extend(["--host", args.host, "--port", str(args.port), "--workers", str(args.workers)])
+    if args.with_workers:
+        cmd.append("--with-workers")
+    return run_command(cmd)
+
+
+def cmd_linkedin_login(args: argparse.Namespace) -> int:
+    cmd = python_script_command(SCRIPTS_ROOT / "url_resolver.py")
+    cmd.append("--linkedin-login")
+    return run_command(cmd)
+
+
+def _detect_role_status(role_dir: Path) -> str:
+    """Detect the correct job status from filesystem artifacts.
+
+    Checks submission result files, confirmation files, content files, and
+    draft artifacts to determine whether a job was submitted, is in draft,
+    or is still generating.
+    Works with both old layout (files in root) and new layout (content/ + submit/).
+    """
+    submit_dir = role_dir / "submit"
+    content_dir = role_dir / "content"
+
+    _RESULT_STATUS_MAP = {
+        "confirmed": "submitted",
+        "submitted": "submitted",
+        "skipped_captcha": "skipped_captcha",
+        "skipped_auth": "skipped_auth",
+        "failed": "failed",
+    }
+
+    # Check application_submission_result.json (most authoritative source)
+    for candidate in [submit_dir] + sorted(role_dir.glob("submit-*")):
+        result_path = candidate / "application_submission_result.json"
+        if result_path.exists():
+            try:
+                data = json.loads(result_path.read_text(encoding="utf-8"))
+                mapped = _RESULT_STATUS_MAP.get(data.get("status", ""))
+                if mapped:
+                    return mapped
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    # Check for website confirmation in submit/ or submit-*/ directories
+    for candidate in [submit_dir] + sorted(role_dir.glob("submit-*")):
+        if (candidate / "application_confirmation_website.json").exists():
+            return "submitted"
+
+    # Check for confirmation in old layout (files in root)
+    if (role_dir / "application_confirmation_website.json").exists():
+        return "submitted"
+
+    # Check for completed materials (draft status)
+    for base in (content_dir, role_dir):
+        has_resume = (base / "resume_content.json").exists()
+        has_cl = (base / "cover_letter_text.txt").exists()
+        if has_resume and has_cl:
+            return "draft"
+
+    # Check for draft in progress
+    for base in (content_dir, role_dir):
+        if (base / "resume_content_draft.json").exists():
+            return "generating"
+
+    return "queued"
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import add_job, init_db, update_status
+    output_dir = Path(args.output_dir).resolve()
+    if not output_dir.is_dir():
+        print(f"Output directory not found: {output_dir}")
+        return 1
+    conn = init_db(jobs_db_path())
+    imported = 0
+    for company_dir in sorted(output_dir.iterdir()):
+        if not company_dir.is_dir():
+            continue
+        for role_dir in sorted(company_dir.iterdir()):
+            if not role_dir.is_dir():
+                continue
+            meta_path = role_dir / ".pipeline_meta.json"
+            if not meta_path.exists():
+                continue
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            url = meta.get("jd_url") or meta.get("jd_source_url") or meta.get("jd_source_resolved") or meta.get("jd_source") or meta.get("url", "")
+            if not url or not url.startswith("http"):
+                continue
+            company = meta.get("company", company_dir.name)
+            role = meta.get("jd_title") or meta.get("role_title") or meta.get("role_slug", role_dir.name)
+            board = meta.get("board")
+            status = _detect_role_status(role_dir)
+            try:
+                job_id = add_job(conn, url, priority=0)
+            except Exception:
+                # Likely duplicate canonical_url
+                continue
+            update_status(
+                conn,
+                job_id,
+                status,
+                company=company,
+                role_title=role,
+                board=board,
+                output_dir=str(role_dir),
+            )
+            imported += 1
+    print(f"Imported {imported} jobs from {output_dir}")
+    conn.close()
+    return 0
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    """Sync all jobs from on-disk artifacts into the database.
+
+    Reads submission results, confirmations, Notion sync status, autofill
+    reports, and error details from output directories and updates the
+    corresponding database records.
+    """
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+    from job_db import init_db, sync_all_jobs_from_disk
+    conn = init_db(jobs_db_path())
+    result = sync_all_jobs_from_disk(conn)
+    print(f"Synced {result['synced']} of {result['total']} jobs from disk artifacts")
+
+    # Show final status distribution
+    counts = conn.execute(
+        "SELECT status, COUNT(*) FROM jobs GROUP BY status ORDER BY COUNT(*) DESC"
+    ).fetchall()
+    print()
+    for s, c in counts:
+        print(f"  {s:<20} {c:>3}")
+    conn.close()
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    provider = default_provider()
+    description = (
+        "Generate tailored job application assets without opening an interactive Codex or Claude session first.\n\n"
+        "URL-based runs fail fast if the website scrape does not produce a usable JD.\n\n"
+        "Single-job shortcut: if the first positional argument is a JD URL or file path, the command runs the "
+        "end-to-end pipeline flow and stops at review unless you add --submit.\n\n"
+        "Use 'apply' only when you explicitly want assets without launching submit automation.\n\n"
+        f"Default provider: {provider}\n\n"
+        f"Examples:\n"
+        f"  {command_prefix()} https://boards.greenhouse.io/company/jobs/12345\n"
+        f"  {command_prefix()} --submit https://boards.greenhouse.io/company/jobs/12345\n"
+        f"  {command_prefix()} apply tmp/jd.md acme senior-pm\n"
+        f"  {command_prefix()} pipeline --submit https://boards.greenhouse.io/company/jobs/12345\n"
+        f"  {command_prefix()} submit output/acme/senior-pm --submit\n"
+        f"  {command_prefix()} batch --max-parallel 6\n"
+        f"  {command_prefix()} parallel --max-parallel 6\n"
+        f"  {command_prefix()} profile show\n"
+        f"  {command_prefix()} notion-sync output/company/role-slug\n"
+        f"  {command_prefix()} man\n"
+    )
+
+    parser = argparse.ArgumentParser(
+        prog=COMMAND_NAME,
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    apply_parser = subparsers.add_parser(
+        "apply",
+        help="Generate resume and cover letter assets only for a single job posting",
+    )
+    add_provider_option(apply_parser, default=default_provider())
+    apply_parser.add_argument(
+        "--skip-sync",
+        action="store_true",
+        help="Skip syncing work_stories.md and candidate_context.md before generation.",
+    )
+    apply_parser.add_argument("jd_source", help="Job description source: URL or local file")
+    apply_parser.add_argument("company", nargs="?", help="Optional company slug override")
+    apply_parser.add_argument("role", nargs="?", help="Optional role slug override")
+    apply_parser.set_defaults(func=cmd_apply)
+
+    pipeline_parser = subparsers.add_parser(
+        "pipeline",
+        help="Run the full single-job flow: generate assets, then continue into supported board autofill/submission",
+    )
+    add_provider_option(pipeline_parser, default=default_provider())
+    pipeline_parser.add_argument(
+        "--skip-sync",
+        action="store_true",
+        help="Skip syncing work_stories.md and candidate_context.md before generation.",
+    )
+    pipeline_parser.add_argument(
+        "--browser-provider",
+        choices=("local", "steel"),
+        default=None,
+        help="Browser runtime to use for submit automation (default: env or local).",
+    )
+    pipeline_parser.add_argument(
+        "--payload-only",
+        action="store_true",
+        help="Generate the board-specific autofill payload after assets are built, but do not launch the browser.",
+    )
+    pipeline_parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Launch the Playwright runtime in headless mode during the submit stage.",
+    )
+    pipeline_parser.add_argument(
+        "--submit",
+        action="store_true",
+        help="Submit the application after autofill. Without this flag, the browser stops at a review state.",
+    )
+    pipeline_parser.add_argument(
+        "--reapply",
+        action="store_true",
+        help="Start or continue one fresh submit-* reapply artifact directory for this role.",
+    )
+    pipeline_parser.add_argument("jd_source", help="Job description source: URL or local file")
+    pipeline_parser.add_argument("company", nargs="?", help="Optional company slug override")
+    pipeline_parser.add_argument("role", nargs="?", help="Optional role slug override")
+    pipeline_parser.set_defaults(func=cmd_pipeline)
+
+    submit_parser = subparsers.add_parser(
+        "submit",
+        help="Run board-specific application autofill and optional submission for an existing output directory",
+    )
+    add_provider_option(submit_parser, default=default_provider())
+    submit_parser.add_argument(
+        "target",
+        help="Output directory or job URL already present in .pipeline_meta.json",
+    )
+    submit_parser.add_argument(
+        "--browser-provider",
+        choices=("local", "steel"),
+        default=None,
+        help="Browser runtime to use for submit automation (default: env or local).",
+    )
+    submit_parser.add_argument(
+        "--payload-only",
+        action="store_true",
+        help="Only generate the board-specific autofill payload.",
+    )
+    submit_parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Launch the Playwright runtime in headless mode.",
+    )
+    submit_parser.add_argument(
+        "--submit",
+        action="store_true",
+        help="Submit the application after autofill. Default behavior stops for review.",
+    )
+    submit_parser.add_argument(
+        "--reapply",
+        action="store_true",
+        help="Start or continue one fresh submit-* reapply artifact directory for this role.",
+    )
+    submit_parser.set_defaults(func=cmd_submit)
+
+    batch_parser = subparsers.add_parser(
+        "batch",
+        help="Run the high-throughput batch flow for all discovered jobs",
+    )
+    add_provider_option(batch_parser, default=default_provider())
+    batch_parser.add_argument("--dry-run", action="store_true", help="List jobs without processing them")
+    batch_parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=default_max_parallel(),
+        help="Maximum concurrent LLM jobs (default: %(default)s)",
+    )
+    batch_parser.set_defaults(func=cmd_batch)
+
+    parallel_parser = subparsers.add_parser(
+        "parallel",
+        help="Run the parallel batch flow for all discovered jobs",
+    )
+    add_provider_option(parallel_parser, default=default_provider())
+    parallel_parser.add_argument("--dry-run", action="store_true", help="List jobs without processing them")
+    parallel_parser.add_argument("--build-only", action="store_true", help="Skip LLM generation and only build documents")
+    parallel_parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=default_max_parallel(),
+        help="Maximum concurrent LLM jobs (default: %(default)s)",
+    )
+    parallel_parser.set_defaults(func=cmd_parallel)
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Show installation and provider diagnostics",
+    )
+    doctor_parser.set_defaults(func=cmd_doctor)
+
+    profile_parser = subparsers.add_parser(
+        "profile",
+        help="Show the editable application-profile defaults file or print its path",
+    )
+    profile_parser.add_argument(
+        "profile_action",
+        nargs="?",
+        choices=("show", "path"),
+        default="show",
+        help="Show the file contents or print its path (default: %(default)s)",
+    )
+    profile_parser.set_defaults(func=cmd_profile)
+
+    notion_sync_parser = subparsers.add_parser(
+        "notion-sync",
+        help="Sync a website-confirmed application into the Notion tracker after the email confirmation arrives",
+    )
+    notion_sync_parser.add_argument(
+        "target",
+        help="Output directory (e.g. output/company/role-slug) or a job URL already present in .pipeline_meta.json",
+    )
+    notion_sync_parser.add_argument(
+        "--wait-for-email",
+        type=int,
+        default=90,
+        help="Seconds to wait for the confirmation email before leaving the sync pending (default: %(default)s)",
+    )
+    notion_sync_parser.add_argument(
+        "--allow-pending-email",
+        action="store_true",
+        help="Exit successfully if the website confirmation exists but the email confirmation has not arrived yet",
+    )
+    notion_sync_parser.add_argument(
+        "--strict-token",
+        action="store_true",
+        help="Exit non-zero when NOTION_API_TOKEN is missing instead of writing a pending status artifact",
+    )
+    notion_sync_parser.set_defaults(func=cmd_notion_sync)
+
+    install_parser = subparsers.add_parser(
+        "install",
+        help="Install command symlinks and man pages into standard locations",
+    )
+    install_parser.add_argument(
+        "--bin-dir",
+        default="~/.local/bin",
+        help="Directory for command symlinks (default: %(default)s)",
+    )
+    install_parser.add_argument(
+        "--man-dir",
+        default="/opt/homebrew/share/man/man1",
+        help="Directory for man page symlinks (default: %(default)s)",
+    )
+    install_parser.add_argument("--no-man", action="store_true", help="Skip man page installation")
+    install_parser.add_argument("--dry-run", action="store_true", help="Show planned changes without writing anything")
+    install_parser.set_defaults(func=cmd_install)
+
+    man_parser = subparsers.add_parser(
+        "man",
+        help="Open the bundled man page without requiring global installation",
+    )
+    man_parser.add_argument(
+        "topic",
+        nargs="?",
+        choices=("job-assets", "job-assets-codex", "job-assets-claude"),
+        help="Manual page topic (default depends on the command name)",
+    )
+    man_parser.set_defaults(func=cmd_man)
+
+    # --- Job queue management commands ---
+
+    add_parser = subparsers.add_parser(
+        "add",
+        help="Queue one or more job URLs for processing",
+    )
+    add_parser.add_argument("urls", nargs="*", help="Job posting URLs to queue")
+    add_parser.add_argument(
+        "--priority",
+        type=int,
+        default=0,
+        help="Priority level (higher = processed sooner, default: %(default)s)",
+    )
+    add_parser.add_argument(
+        "--saved-portal",
+        choices=saved_portal_choices(),
+        help="Import jobs from a saved-job portal instead of positional URLs",
+    )
+    add_provider_option(add_parser, default=default_provider())
+    add_parser.set_defaults(func=cmd_add)
+
+    queue_parser = subparsers.add_parser(
+        "queue",
+        help="Show the current job queue with status summary",
+    )
+    queue_parser.add_argument("--status", help="Filter by job status")
+    queue_parser.add_argument("--board", help="Filter by job board")
+    queue_parser.add_argument("--source", help="Filter by source (e.g. linkedin, direct)")
+    queue_parser.add_argument("--search", help="Search company or role title")
+    queue_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number of jobs to show (default: %(default)s)",
+    )
+    queue_parser.set_defaults(func=cmd_queue)
+
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Show detailed information and timeline for a specific job",
+    )
+    status_parser.add_argument("job_id", type=int, help="Job ID to inspect")
+    status_parser.set_defaults(func=cmd_status)
+
+    retry_parser = subparsers.add_parser(
+        "retry",
+        help="Re-queue a failed job for retry",
+    )
+    retry_parser.add_argument("job_id", type=int, help="Job ID to retry")
+    retry_parser.set_defaults(func=cmd_retry)
+
+    skip_parser = subparsers.add_parser(
+        "skip",
+        help="Mark a job as skipped (needs manual handling)",
+    )
+    skip_parser.add_argument("job_id", type=int, help="Job ID to skip")
+    skip_parser.set_defaults(func=cmd_skip)
+
+    prioritize_parser = subparsers.add_parser(
+        "prioritize",
+        help="Bump a job's priority to 10 so it is processed next",
+    )
+    prioritize_parser.add_argument("job_id", type=int, help="Job ID to prioritize")
+    prioritize_parser.set_defaults(func=cmd_prioritize)
+
+    worker_parser = subparsers.add_parser(
+        "worker",
+        help="Start, stop, or check the background job worker",
+    )
+    worker_parser.add_argument(
+        "action",
+        choices=("start", "stop", "status"),
+        help="Worker action to perform",
+    )
+    worker_parser.add_argument(
+        "--workers",
+        type=int,
+        default=3,
+        help="Number of concurrent workers (default: %(default)s)",
+    )
+    worker_parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run browser automation in headless mode",
+    )
+    worker_parser.add_argument(
+        "--auto-submit",
+        action="store_true",
+        help="Bypass draft review, submit immediately after autofill",
+    )
+    worker_parser.set_defaults(func=cmd_worker)
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Query and export job results",
+    )
+    report_parser.add_argument("--job", type=int, help="Show detailed metrics for a specific job ID")
+    report_parser.add_argument("--board", help="Filter by job board")
+    report_parser.add_argument("--status", help="Filter by job status")
+    report_parser.add_argument("--since", help="Show jobs created on or after this timestamp (ISO format)")
+    report_parser.add_argument(
+        "--format",
+        choices=("table", "json", "csv"),
+        default="table",
+        help="Output format (default: %(default)s)",
+    )
+    report_parser.set_defaults(func=cmd_report)
+
+    linkedin_login_parser = subparsers.add_parser(
+        "linkedin-login",
+        help="Log in to LinkedIn in a browser to enable URL resolution for LinkedIn job links",
+    )
+    linkedin_login_parser.set_defaults(func=cmd_linkedin_login)
+
+    tui_parser = subparsers.add_parser(
+        "tui",
+        help="Launch the interactive terminal UI for job queue management",
+    )
+    tui_parser.add_argument(
+        "--clean", action="store_true",
+        help="Kill orphaned workers, reset stuck jobs, then launch fresh",
+    )
+    tui_parser.set_defaults(func=cmd_tui)
+
+    web_parser = subparsers.add_parser(
+        "web",
+        help="Launch the web UI for job queue management",
+    )
+    web_parser.add_argument("--host", default="127.0.0.1",
+                           help="Bind host (use 0.0.0.0 for LAN access)")
+    web_parser.add_argument("--port", type=int, default=8420,
+                           help="Port (default: %(default)s)")
+    web_parser.add_argument("--workers", type=int, default=16,
+                           help="Number of job workers (default: %(default)s)")
+    web_parser.add_argument("--with-workers", action="store_true",
+                           help="Auto-start workers with the web server (default: workers run independently)")
+    web_parser.set_defaults(func=cmd_web)
+
+    import_parser = subparsers.add_parser(
+        "import",
+        help="Import existing output directories into the job database",
+    )
+    import_parser.add_argument(
+        "--output-dir",
+        default=str(REPO_ROOT / "output"),
+        help="Root output directory to scan (default: %(default)s)",
+    )
+    import_parser.set_defaults(func=cmd_import)
+
+    sync_parser = subparsers.add_parser(
+        "sync",
+        help="Sync on-disk submission artifacts into the database",
+    )
+    sync_parser.set_defaults(func=cmd_sync)
+
+    # --- Draft review commands ---
+
+    draft_parser = subparsers.add_parser("draft", help="Draft review commands")
+    draft_sub = draft_parser.add_subparsers(dest="draft_command", required=True)
+
+    draft_list_parser = draft_sub.add_parser("list", help="List jobs in draft status")
+    draft_list_parser.set_defaults(func=cmd_draft_list)
+
+    draft_review_parser = draft_sub.add_parser("review", help="Show draft summary for a job")
+    draft_review_parser.add_argument("target", help="Job ID or URL")
+    draft_review_parser.add_argument("--edit", action="store_true", help="Open draft_summary.md in $EDITOR")
+    draft_review_parser.set_defaults(func=cmd_draft_review)
+
+    draft_approve_parser = draft_sub.add_parser("approve", help="Approve draft and submit")
+    draft_approve_parser.add_argument("target", help="Job ID or URL")
+    draft_approve_parser.set_defaults(func=cmd_draft_approve)
+
+    draft_reject_parser = draft_sub.add_parser("reject", help="Reject draft -> stopped")
+    draft_reject_parser.add_argument("target", help="Job ID or URL")
+    draft_reject_parser.set_defaults(func=cmd_draft_reject)
+
+    draft_regen_parser = draft_sub.add_parser("regenerate", help="Process edits and regenerate draft")
+    draft_regen_parser.add_argument("target", help="Job ID or URL")
+    draft_regen_parser.set_defaults(func=cmd_draft_regenerate)
+
+    draft_serve_parser = draft_sub.add_parser("serve", help="Start web review server")
+    draft_serve_parser.add_argument("--port", type=int, default=8420, help="Port to listen on (default: %(default)s)")
+    draft_serve_parser.add_argument(
+        "--tunnel",
+        choices=("cloudflare", "ngrok"),
+        default=None,
+        help="Expose via tunnel (optional)",
+    )
+    draft_serve_parser.set_defaults(func=cmd_draft_serve)
+
+    return parser
+
+
+def main() -> int:
+    abort_if_recursive_entrypoints_forbidden(COMMAND_NAME)
+    _maybe_reexec_cli_with_uv()
+    parser = build_parser()
+    argv = preprocess_argv(sys.argv[1:])
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

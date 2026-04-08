@@ -1,0 +1,48 @@
+.TH JOB-ASSETS-CLAUDE 1 "March 2026" "job-assets-claude" "User Commands"
+.SH NAME
+job-assets-claude \- run the job-assets CLI with Claude as the default provider
+.SH SYNOPSIS
+.B job-assets-claude
+[\fICOMMAND\fR] [\fIOPTIONS\fR]
+.br
+.B job-assets-claude
+\fIJD_SOURCE\fR [\fICOMPANY\fR] [\fIROLE\fR]
+.SH DESCRIPTION
+.B job-assets-claude
+behaves like
+.BR job-assets ,
+but defaults the provider to
+.BR claude .
+Its Claude-backed runs explicitly request
+.B claude-sonnet-4-6
+with
+.B --effort max
+unless
+.BR CLAUDE_MODEL ,
+.BR CLAUDE_EFFORT ,
+ .BR CLAUDE_PERMISSION_MODE ,
+or
+.BR CLAUDE_EXTRA_ARGS
+override them.
+The non-interactive argv keeps
+.B --print
+immediately before the prompt so newer Claude CLI builds do not drop it.
+Submit-time Claude runs use the same centralized submit-mode tool allowlist as the rest of the repo, so board-specific answer generation stays aligned with the main asset pipeline.
+If the first argument is a job description URL or file path, it runs the single-job
+.B pipeline
+flow and stops at review unless
+.B --submit
+is also present.
+.SH EXAMPLES
+.TP
+.B job-assets-claude https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow with Claude.
+.TP
+.B job-assets-claude --submit https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow with Claude and submit after review.
+.TP
+.B job-assets-claude batch --dry-run
+Run the standard high-throughput batch workflow with Claude.
+.SH SEE ALSO
+.BR job-assets (1),
+.BR job-assets-codex (1)
