@@ -20,11 +20,11 @@ output/<company>/<role-slug>/
     resume_content.json
     cover_letter_text.txt
   documents/
-    Jerrison Li Resume - <Company>.docx
-    Jerrison Li Resume - <Company>.pdf
-    Jerrison Li Cover Letter - <Company>.docx
-    Jerrison Li Cover Letter - <Company>.pdf
-    Jerrison Li Cover Letter - <Company>.txt
+    <Candidate Name> Resume - <Company>.docx
+    <Candidate Name> Resume - <Company>.pdf
+    <Candidate Name> Cover Letter - <Company>.docx
+    <Candidate Name> Cover Letter - <Company>.pdf
+    <Candidate Name> Cover Letter - <Company>.txt
   submit/
     <board>_autofill_payload.json
     <board>_autofill_report.md
@@ -42,8 +42,8 @@ output/<company>/<role-slug>/
     notion_sync_status.json
   interview_prep/                              # Optional, on-demand
     interview_prep.md                          # Full prep guide (markdown)
-    Jerrison Li Interview Prep - <Company>.docx
-    Jerrison Li Interview Prep - <Company>.pdf
+    <Candidate Name> Interview Prep - <Company>.docx
+    <Candidate Name> Interview Prep - <Company>.pdf
     .progress.json                             # Generation progress (transient)
     .generating                                # Lock file with PID (transient)
 ```

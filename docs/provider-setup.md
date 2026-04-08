@@ -1,14 +1,20 @@
 # LLM Provider Setup
 
-The pipeline supports multiple LLM providers via CLI tools. Switch providers by setting one environment variable — no code changes needed.
+The pipeline supports multiple LLM providers. In product mode, the packaged
+app, web app, CLI, and TUI all resolve provider settings from the same shared
+settings backend in `scripts/settings_store.py`.
+
+Under the hood, those values live in the runtime app-home env files returned by
+`scripts/app_paths.py`. They are local runtime state, not committed repo
+configuration.
 
 ## Supported Providers
 
 | Provider | CLI Binary | Default Model | Install |
 |----------|-----------|---------------|---------|
-| `claude` (default) | `claude` | `claude-sonnet-4-6` | [claude.ai/download](https://claude.ai/download) |
+| `claude` | `claude` | `claude-sonnet-4-6` | [claude.ai/download](https://claude.ai/download) |
 | `codex` | `codex` | `gpt-5.4` | `brew install codex` or `npm install -g @openai/codex` |
-| `openai` | `python openai_provider.py` | `gpt-5.4` | `uv add openai` + API key |
+| `openai` (default) | `python openai_provider.py` | `gpt-5.4` | `uv add openai` + API key |
 | `gemini` | `gemini` | `gemini-3-flash-preview` | [ai.google.dev/gemini-api/docs/quickstart](https://ai.google.dev/gemini-api/docs/quickstart) |
 | `gemini-flash` | `gemini` | `gemini-3-flash-preview` | Same as gemini |
 
@@ -17,40 +23,52 @@ The pipeline supports multiple LLM providers via CLI tools. Switch providers by 
 1. **Install:** `brew install codex`
 2. **Authenticate** (pick one):
    - **OAuth:** `codex login` (opens browser)
-   - **API key:** Add `CODEX_API_KEY=sk-proj-...` to `.env.local`
-3. **Configure `.env.local`:**
+   - **API key:** `job-assets settings set --codex-api-key sk-proj-...`
+3. **Set the shared default provider:**
    ```bash
-   ASSET_LLM_PROVIDER=codex
+   job-assets settings set --default-provider codex
    ```
-4. Run the pipeline as normal — all LLM calls now use GPT via Codex CLI.
+4. Run the pipeline as normal. All surfaces now resolve Codex from the same
+   runtime settings.
 
 ## Quick Start: OpenAI API
 
 1. **Get an API key** from [platform.openai.com](https://platform.openai.com)
-2. **Configure `.env.local`:**
+2. **Configure the shared settings backend:**
    ```bash
-   ASSET_LLM_PROVIDER=openai
-   OPENAI_API_KEY=sk-proj-...
+   job-assets settings set --default-provider openai --openai-api-key sk-proj-...
    ```
-3. Run the pipeline as normal — all LLM calls now use OpenAI's Responses API directly.
+3. Run the pipeline as normal. All surfaces now use OpenAI's Responses API
+   directly.
 
 ### OpenAI Key Pool
 
-If you want to spread OpenAI traffic across multiple keys, put them in `.env.local` as a comma-separated pool:
+If you want to spread OpenAI traffic across multiple keys, configure them in
+the shared settings backend as a comma-separated pool:
 
 ```bash
-ASSET_LLM_PROVIDER=openai
-OPENAI_API_KEYS=sk-proj-key-1,sk-proj-key-2,sk-proj-key-3,sk-proj-key-4,sk-proj-key-5
+job-assets settings set \
+  --default-provider openai \
+  --openai-api-keys sk-proj-key-1,sk-proj-key-2,sk-proj-key-3
 ```
 
 When `OPENAI_API_KEYS` is set, it takes precedence over `OPENAI_API_KEY`. The provider shim selects one key from the pool for each OpenAI request so traffic is spread across the configured keys.
 
 ## Configuration
 
-All provider settings are in `.env.local`:
+Manage provider settings through the shared settings flows first:
 
 ```bash
-# Primary provider (required)
+job-assets settings show
+job-assets settings set --default-provider openai --provider-chain openai,gemini
+job-assets settings set --openai-model gpt-5.4 --gemini-model gemini-3-flash-preview
+```
+
+Equivalent runtime env values are stored in the app-home `.env` / `.env.local`
+files:
+
+```bash
+# Primary provider
 ASSET_LLM_PROVIDER=openai
 
 # Automated fallback chain — only OpenAI and Gemini are used

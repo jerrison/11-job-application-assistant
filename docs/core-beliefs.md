@@ -42,3 +42,12 @@ Golden principles for this codebase. Opinionated, mechanical rules that keep age
 22. **AGENTS.md is a ~100-line navigation map.** Detail lives in docs/.
 23. **Plans are first-class versioned artifacts.** Active execution plans live in `docs/exec-plans/active/`, completed ones move to `docs/exec-plans/completed/`, and the template lives at `docs/PLAN_TEMPLATE.md`.
 24. **Update docs in the same commit as the code change.** If a fix changes behavior documented in `docs/autofill-patterns.md` or `docs/board-architecture.md`, the doc update ships in the same commit.
+
+## Governance
+
+25. **Durable memory beats conversational memory.** Long-running work must externalize spec, plan, status, and proof into repo artifacts or runtime outputs.
+26. **Fresh-context resumability is required.** Another agent should be able to resume from docs, git history, and current artifacts without prior chat history.
+27. **One milestone at a time.** Complex work decomposes into checkpoints with explicit validation commands and stop-and-fix rules.
+28. **Risk-tiered approvals.** Draft automation can run after the user asks for it; live submission, push, merge, publication, and destructive actions require explicit approval.
+29. **Registries over tribal knowledge.** Agents, tools, and prompt/control surfaces must be documented with owner, purpose, and change control.
+30. **Traceability with minimal exposure.** Keep enough logs, screenshots, and structured outputs to audit the run without leaking secrets or unnecessary personal data.

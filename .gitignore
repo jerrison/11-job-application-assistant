@@ -9,6 +9,8 @@ __pycache__/
 .claude/
 .coverage
 htmlcov/
+build/
+dist/
 
 # Local caches and helper state
 .uv-cache/
@@ -31,6 +33,7 @@ htmlcov/
 # Logs and temp files
 tmp/
 logs/
+traces/
 *.log
 
 # User-owned runtime data
