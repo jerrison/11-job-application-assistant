@@ -38,6 +38,7 @@ from answer_refresh_state import (  # noqa: E402 — after sys.path setup
     load_answer_refresh_state,
     mark_answer_refresh_pending,
 )
+from app_paths import output_root as runtime_output_root
 from job_board_urls import icims_auth_scope, workday_auth_scope  # noqa: E402 — after sys.path setup
 from job_db import (  # noqa: E402 — after sys.path setup
     RETRY_AFTER_SENTINEL,
@@ -74,6 +75,7 @@ from pipeline_reset_helpers import (  # noqa: E402 — after sys.path setup
     _finalize_reset_job_to_new,
     clear_restart_pipeline_artifacts,
 )
+from runtime_entrypoints import python_script_command
 from submission_result_outcomes import handle_draft_mode_submission_result
 from worker_subprocess import prepare_worker_subprocess_kwargs
 
@@ -869,6 +871,8 @@ def _get_provider_chain() -> list[str]:
 
 def _uv_python_cmd(*script_and_args: str) -> list[str]:
     """Build a ``uv run python <script> ...`` command list."""
+    if script_and_args and script_and_args[0].endswith(".py") and not script_and_args[0].startswith("-"):
+        return python_script_command(script_and_args[0], *script_and_args[1:])
     if shutil.which("uv"):
         return ["uv", "run", "--project", str(PROJECT_ROOT), "python", *script_and_args]
     return [sys.executable, *script_and_args]
@@ -2334,7 +2338,7 @@ def process_job(
             from sync_master_resume import sync_if_stale
 
             if sync_if_stale():
-                log.info("job %d: master resume synced from Google Doc", job_id)
+                log.info("job %d: master resume synced from configured source", job_id)
         except Exception:
             pass  # non-fatal; use whatever local copy exists
 
@@ -3445,7 +3449,7 @@ def _discover_output_dir(url: str) -> Path | None:
     Looks for the most recently modified .pipeline_meta.json that references
     this URL.
     """
-    output_root = PROJECT_ROOT / "output"
+    output_root = runtime_output_root()
     if not output_root.is_dir():
         return None
 

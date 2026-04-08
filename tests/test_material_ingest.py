@@ -85,6 +85,52 @@ class MaterialIngestTests(unittest.TestCase):
             ["https://docs.google.com/document/d/abc123/export?format=txt"],
         )
 
+    def test_import_google_drive_file_url_uses_direct_download_endpoint(self):
+        material_ingest = load_module("material_ingest", "scripts/material_ingest.py")
+        seen_urls: list[str] = []
+
+        def fake_fetch(url: str):
+            seen_urls.append(url)
+            return material_ingest.FetchResult(
+                url=url,
+                content_type="text/plain; charset=utf-8",
+                content=b"Imported from Drive URL\n",
+            )
+
+        text = material_ingest.import_material_content(
+            source_url="https://drive.google.com/file/d/drive123/view?usp=sharing",
+            fetcher=fake_fetch,
+        )
+
+        self.assertEqual(text, "Imported from Drive URL\n")
+        self.assertEqual(
+            seen_urls,
+            ["https://drive.google.com/uc?export=download&id=drive123"],
+        )
+
+    def test_import_google_drive_open_id_url_uses_direct_download_endpoint(self):
+        material_ingest = load_module("material_ingest", "scripts/material_ingest.py")
+        seen_urls: list[str] = []
+
+        def fake_fetch(url: str):
+            seen_urls.append(url)
+            return material_ingest.FetchResult(
+                url=url,
+                content_type="text/plain; charset=utf-8",
+                content=b"Imported from Drive Open URL\n",
+            )
+
+        text = material_ingest.import_material_content(
+            source_url="https://drive.google.com/open?id=open456",
+            fetcher=fake_fetch,
+        )
+
+        self.assertEqual(text, "Imported from Drive Open URL\n")
+        self.assertEqual(
+            seen_urls,
+            ["https://drive.google.com/uc?export=download&id=open456"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

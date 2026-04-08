@@ -51,6 +51,104 @@ class JobAssetsCliTests(unittest.TestCase):
         ):
             self.assertEqual(cli.application_profile_path(), Path(tmpdir) / "application_profile.md")
 
+    def test_build_parser_accepts_settings_import_command(self):
+        cli = load_cli_module()
+        parser = cli.build_parser()
+
+        args = parser.parse_args(
+            [
+                "settings",
+                "import",
+                "master_resume",
+                "--url",
+                "https://drive.google.com/file/d/drive123/view?usp=sharing",
+            ]
+        )
+
+        self.assertEqual(args.command, "settings")
+        self.assertEqual(args.settings_command, "import")
+        self.assertEqual(args.material_key, "master_resume")
+        self.assertEqual(args.url, "https://drive.google.com/file/d/drive123/view?usp=sharing")
+
+    def test_cmd_settings_import_reads_local_file_and_uses_shared_settings_store(self):
+        cli = load_cli_module()
+        fake_store = mock.Mock()
+        fake_store.import_material.return_value = {
+            "material_key": "master_resume",
+            "text": "# Imported Resume\n",
+            "bootstrap": {"onboarding": {"complete": True}},
+        }
+        args = argparse.Namespace(
+            settings_command="import",
+            material_key="master_resume",
+            file=None,
+            url=None,
+            text="# Imported Resume\n",
+            json=False,
+        )
+        stdout = io.StringIO()
+
+        with (
+            mock.patch.object(cli, "_settings_store_module", return_value=fake_store),
+            mock.patch("sys.stdout", stdout),
+        ):
+            result = cli.cmd_settings_import(args)
+
+        self.assertEqual(result, 0)
+        fake_store.import_material.assert_called_once_with(
+            "master_resume",
+            text="# Imported Resume\n",
+        )
+        self.assertIn("master_resume imported", stdout.getvalue())
+
+    def test_cmd_settings_set_writes_provider_credentials_through_shared_store(self):
+        cli = load_cli_module()
+        fake_store = mock.Mock()
+        fake_store.save_settings.return_value = {
+            "providers": {"default_provider": "openai"},
+            "credentials": {"openai_api_key": {"configured": True}},
+        }
+        args = argparse.Namespace(
+            settings_command="set",
+            default_provider="openai",
+            provider_chain="openai,gemini",
+            openai_api_key="sk-test-12345678",
+            gemini_api_key=None,
+            codex_api_key=None,
+            anthropic_api_key=None,
+            steel_api_key=None,
+            openai_api_keys=None,
+            steel_local=None,
+            steel_base_url=None,
+            openai_model=None,
+            gemini_model=None,
+            gemini_flash_model=None,
+            codex_model=None,
+            claude_model=None,
+            json=False,
+        )
+        stdout = io.StringIO()
+
+        with (
+            mock.patch.object(cli, "_settings_store_module", return_value=fake_store),
+            mock.patch("sys.stdout", stdout),
+        ):
+            result = cli.cmd_settings_set(args)
+
+        self.assertEqual(result, 0)
+        fake_store.save_settings.assert_called_once_with(
+            {
+                "providers": {
+                    "default_provider": "openai",
+                    "provider_chain": "openai,gemini",
+                },
+                "credentials": {
+                    "openai_api_key": "sk-test-12345678",
+                },
+            }
+        )
+        self.assertIn("settings updated", stdout.getvalue())
+
     def test_build_parser_accepts_pipeline_command(self):
         cli = load_cli_module()
         parser = cli.build_parser()

@@ -625,7 +625,7 @@ class NotionSyncTests(unittest.TestCase):
         notion_sync = load_module("notion_job_applications", "scripts/notion_job_applications.py")
         message = {
             "snippet": (
-                "Hi Jerrison, Thanks so much for applying to roles here at Reflection. "
+                "Hi Candidate, Thanks so much for applying to roles here at Reflection. "
                 "We&#39;ve received your application,"
             ),
             "payload": {"mimeType": "multipart/alternative"},
@@ -644,7 +644,7 @@ class NotionSyncTests(unittest.TestCase):
         notion_sync = load_module("notion_job_applications", "scripts/notion_job_applications.py")
         message = {
             "snippet": (
-                "Hi Jerrison, Thank you for your interest in Handshake! "
+                "Hi Candidate, Thank you for your interest in Handshake! "
                 "We have received your application for the Senior Product Manager role."
             ),
             "payload": {"mimeType": "multipart/alternative"},
@@ -749,7 +749,7 @@ class NotionSyncTests(unittest.TestCase):
                         "threadId": "thread-reflection",
                         "internalDate": "1773447512000",
                         "snippet": (
-                            "Hi Jerrison, Thanks so much for applying to roles here at Reflection. "
+                            "Hi Candidate, Thanks so much for applying to roles here at Reflection. "
                             "We&#39;ve received your application,"
                         ),
                         "payload": {"mimeType": "multipart/alternative"},
@@ -760,7 +760,7 @@ class NotionSyncTests(unittest.TestCase):
                         "threadId": "thread-handshake",
                         "internalDate": "1773448634000",
                         "snippet": (
-                            "Hi Jerrison, Thank you for your interest in Handshake! "
+                            "Hi Candidate, Thank you for your interest in Handshake! "
                             "We have received your application for the Senior Product Manager, "
                             "Operator Experience - Handshake AI role."
                         ),
@@ -804,7 +804,7 @@ class NotionSyncTests(unittest.TestCase):
                                     "name": "Subject",
                                     "value": "Re: DexCare - Application Received - Senior Product Manager",
                                 },
-                                {"name": "From", "value": "jerrisonli@gmail.com"},
+                                {"name": "From", "value": "candidate@example.com"},
                                 {"name": "Date", "value": "Thu, 2 Apr 2026 13:30:05 -0700"},
                             ]
                         },

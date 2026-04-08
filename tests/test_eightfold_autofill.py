@@ -349,14 +349,14 @@ def test_fill_step_text_falls_back_to_get_by_label_when_textbox_role_missing():
         "field_name": "first_name",
         "label": "First Name",
         "kind": "text",
-        "value": "Jerrison",
+        "value": "Candidate",
         "source": "master_resume.md",
     }
 
     _fill_step(page=page, step=step)
 
     assert step.get("filled") is True
-    assert field.value == "Jerrison"
+    assert field.value == "Candidate"
 
 
 def test_fill_step_dismisses_transient_dialogs_before_interacting():
@@ -371,7 +371,7 @@ def test_fill_step_dismisses_transient_dialogs_before_interacting():
         "field_name": "first_name",
         "label": "First Name",
         "kind": "text",
-        "value": "Jerrison",
+        "value": "Candidate",
         "source": "master_resume.md",
     }
 
@@ -382,7 +382,7 @@ def test_fill_step_dismisses_transient_dialogs_before_interacting():
 
     dismiss_cookie.assert_called_once_with(page)
     dismiss_privacy.assert_called_once_with(page)
-    assert field.value == "Jerrison"
+    assert field.value == "Candidate"
 
 
 def test_fill_step_date_sets_readonly_datepicker_value_via_dom_events():

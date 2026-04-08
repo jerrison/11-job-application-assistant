@@ -42,6 +42,7 @@ from answer_generation_support import (
 )
 from answer_refresh_state import current_answer_refresh_request_id
 from answer_verifier import verify_generated_answers
+from app_paths import display_path, material_path, output_root
 from application_models import ApplicationProfile
 from application_models import parse_application_profile as parse_shared_application_profile
 from application_submit_common import (
@@ -152,10 +153,11 @@ _greenhouse_browser_job_closed_reason = greenhouse_browser_job_closed_reason
 APPLICATION_ANSWER_EM_DASH_GUIDANCE = SHARED_APPLICATION_ANSWER_EM_DASH_GUIDANCE
 
 PROJECT_ROOT = SCRIPT_DIR.parent
-MASTER_RESUME_PATH = PROJECT_ROOT / "master_resume.md"
-WORK_STORIES_PATH = PROJECT_ROOT / "work_stories.md"
-CANDIDATE_CONTEXT_PATH = PROJECT_ROOT / "candidate_context.md"
-APPLICATION_PROFILE_PATH = PROJECT_ROOT / "application_profile.md"
+MASTER_RESUME_PATH = material_path("master_resume.md")
+WORK_STORIES_PATH = material_path("work_stories.md")
+CANDIDATE_CONTEXT_PATH = material_path("candidate_context.md")
+APPLICATION_PROFILE_PATH = material_path("application_profile.md")
+OUTPUT_ROOT = output_root()
 REMIX_CONTEXT_RE = re.compile(r"window\.__remixContext\s*=\s*(\{.*?\})\s*;?\s*</script>", re.S)
 URL_RE = re.compile(r"^https?://", re.I)
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -1430,7 +1432,7 @@ def _find_output_dir(target: str) -> Path:
         raise FileNotFoundError(f"{candidate} is not a directory")
 
     if URL_RE.match(target):
-        for meta_path in PROJECT_ROOT.glob("output/*/*/.pipeline_meta.json"):
+        for meta_path in OUTPUT_ROOT.glob("*/*/.pipeline_meta.json"):
             try:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
@@ -3712,7 +3714,7 @@ def _generate_application_answers(
     resume_content = _load_optional_json(role_content_path(out_dir, "resume_content.json")) or _load_optional_json(
         out_dir / "resume_content.json"
     )
-    research_cache = _load_optional_json(PROJECT_ROOT / "output" / meta["company"] / "research_cache.json") or {}
+    research_cache = _load_optional_json(OUTPUT_ROOT / meta["company"] / "research_cache.json") or {}
     _role_research = _load_optional_json(role_content_path(out_dir, "role_research_cache.json")) or _load_optional_json(
         out_dir / "role_research_cache.json"
     )
@@ -5379,7 +5381,7 @@ def _verify_generated_answers_for_current_draft(
     resume_content = _load_optional_json(role_content_path(out_dir, "resume_content.json")) or _load_optional_json(
         out_dir / "resume_content.json"
     )
-    research_cache = _load_optional_json(PROJECT_ROOT / "output" / meta["company"] / "research_cache.json") or {}
+    research_cache = _load_optional_json(OUTPUT_ROOT / meta["company"] / "research_cache.json") or {}
     role_research = _load_optional_json(role_content_path(out_dir, "role_research_cache.json")) or _load_optional_json(
         out_dir / "role_research_cache.json"
     )
@@ -8905,7 +8907,7 @@ def _run_playwright(payload_path: Path, *, headless: bool, submit: bool) -> int:
         if pending_path is not None:
             print(
                 "Greenhouse autofill left planned fields unconfirmed. "
-                f"See {pending_path.relative_to(PROJECT_ROOT)} before submitting.",
+                f"See {display_path(pending_path)} before submitting.",
                 file=sys.stderr,
             )
         return pending_path
@@ -9337,7 +9339,7 @@ def _run_playwright(payload_path: Path, *, headless: bool, submit: bool) -> int:
                     )
                     raise RuntimeError(
                         "Greenhouse autofill left one or more planned fields unconfirmed. "
-                        f"Review {pending_path.relative_to(PROJECT_ROOT)} and rerun after fixing every field."
+                        f"Review {display_path(pending_path)} and rerun after fixing every field."
                     )
                 submit_locator = submit_button_locator(page)
                 if submit_locator is None:
@@ -9400,7 +9402,7 @@ def _run_playwright(payload_path: Path, *, headless: bool, submit: bool) -> int:
                             )
                             raise RuntimeError(
                                 "Greenhouse autofill still had planned-but-unconfirmed fields after the security "
-                                f"code step. Review {pending_path.relative_to(PROJECT_ROOT)} before retrying submit."
+                                f"code step. Review {display_path(pending_path)} before retrying submit."
                             )
                         submit_locator = submit_button_locator(page)
                         if submit_locator is None:
@@ -9597,7 +9599,7 @@ def main() -> int:
     payload_path = role_submit_path(out_dir, "greenhouse_autofill_payload.json")
     payload_path.parent.mkdir(parents=True, exist_ok=True)
     payload_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {payload_path.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {display_path(payload_path)}")
 
     if args.payload_only:
         return 0

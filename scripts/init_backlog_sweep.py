@@ -9,8 +9,15 @@ import json
 import shutil
 import sqlite3
 import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import jobs_db_path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TODOS_DIR = PROJECT_ROOT / ".context" / "compound-engineering" / "todos"
@@ -65,7 +72,7 @@ def utc_run_tag() -> str:
 def load_snapshot_rows(status: str) -> list[dict[str, str]]:
     from job_db import init_db, query_jobs
 
-    conn = init_db(PROJECT_ROOT / "jobs.db")
+    conn = init_db(jobs_db_path())
     try:
         rows = query_jobs(conn, status=status, include_archived=False, limit=100000)
     finally:
@@ -199,7 +206,7 @@ def load_repo_state() -> dict[str, object]:
 
 
 def load_job_status_counts() -> dict[str, int]:
-    db_path = PROJECT_ROOT / "jobs.db"
+    db_path = jobs_db_path()
     if not db_path.exists():
         raise FileNotFoundError(f"Missing jobs database: {db_path}")
 

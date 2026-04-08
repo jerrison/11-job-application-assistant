@@ -59,7 +59,7 @@ def _filled_autofill_report_payload(**overrides):
                 "label": "Full Name",
                 "kind": "text",
                 "status": "filled",
-                "value": "Jerrison Li",
+                "value": "Candidate Name",
                 "source": "application_profile.md",
             }
         ]
@@ -239,16 +239,28 @@ def test_material_import_endpoint_accepts_text_and_writes_runtime_material(clien
 
 
 def test_material_import_endpoint_fetches_public_url_content(client, monkeypatch):
-    import job_web
+    import web_settings_api
 
     with tempfile.TemporaryDirectory() as tmpdir, mock.patch.dict(
         os.environ, {"JOB_ASSETS_APP_HOME": tmpdir}, clear=False
     ):
-        def fake_import_material_content(**kwargs):
+        def fake_import_user_material(material_key, **kwargs):
+            assert material_key == "master_resume"
             assert kwargs["source_url"] == "https://example.com/resume.txt"
-            return "Imported from URL\n"
+            return {
+                "material_key": material_key,
+                "text": "Imported from URL\n",
+                "settings": {
+                    "materials": {
+                        "master_resume": {
+                            "content": "Imported from URL\n",
+                        }
+                    }
+                },
+                "bootstrap": {"onboarding": {"complete": False}},
+            }
 
-        monkeypatch.setattr(job_web, "import_material_content", fake_import_material_content)
+        monkeypatch.setattr(web_settings_api, "import_user_material", fake_import_user_material)
 
         resp = client.post(
             "/api/settings/materials/import",
@@ -1117,8 +1129,8 @@ def test_queue_endpoint_clears_stale_progress_when_current_proof_promotes_job_ba
     docs_dir = out_dir / "documents"
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
-    (docs_dir / "Jerrison Li Resume - Workable.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Workable.pdf").write_text("cover", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Workable.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Workable.pdf").write_text("cover", encoding="utf-8")
     (submit_dir / "workable_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -1600,10 +1612,10 @@ def test_list_documents_prioritizes_canonical_resume_and_cover_letter(client, tm
         json.dumps({"company_proper": "Cresta", "jd_url": "https://www.linkedin.com/jobs/view/4242864623/"}),
         encoding="utf-8",
     )
-    (docs_dir / "Jerrison Li Resume - Cresta..pdf").write_bytes(b"%PDF-stale-resume")
-    (docs_dir / "Jerrison Li Resume - Cresta.pdf").write_bytes(b"%PDF-canonical-resume")
-    (docs_dir / "Jerrison Li Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale-cover")
-    (docs_dir / "Jerrison Li Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical-cover")
+    (docs_dir / "Candidate Name Resume - Cresta..pdf").write_bytes(b"%PDF-stale-resume")
+    (docs_dir / "Candidate Name Resume - Cresta.pdf").write_bytes(b"%PDF-canonical-resume")
+    (docs_dir / "Candidate Name Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale-cover")
+    (docs_dir / "Candidate Name Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical-cover")
 
     import job_web
 
@@ -1614,8 +1626,8 @@ def test_list_documents_prioritizes_canonical_resume_and_cover_letter(client, tm
 
     assert resp.status_code == 200
     pdf_names = [entry["name"] for entry in resp.json()["files"] if entry["type"] == "pdf"]
-    assert pdf_names[0] == "Jerrison Li Resume - Cresta.pdf"
-    assert pdf_names[1] == "Jerrison Li Cover Letter - Cresta.pdf"
+    assert pdf_names[0] == "Candidate Name Resume - Cresta.pdf"
+    assert pdf_names[1] == "Candidate Name Cover Letter - Cresta.pdf"
 
 
 def test_get_job_detail_marks_stale_draft_when_only_historical_proof_has_screenshot(client, tmp_path):
@@ -1784,8 +1796,8 @@ def test_approve_endpoint_records_action_audit_metadata(client, tmp_path):
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
 
@@ -1827,8 +1839,8 @@ def test_approve_endpoint_clears_stale_current_attempt_result_before_submit(clie
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     stale_result = submit_dir / "application_submission_result.json"
@@ -1885,7 +1897,7 @@ def test_content_endpoint_reads_report_from_active_submit_dir(client, tmp_path):
     active_submit.mkdir(parents=True)
     (out_dir / ".active_submit_dir").write_text("submit-20260326T010203Z\n", encoding="utf-8")
     (active_submit / "ashby_autofill_report.json").write_text(
-        json.dumps({"fields": [{"field_name": "first_name", "value": "Jerrison"}]}),
+        json.dumps({"fields": [{"field_name": "first_name", "value": "Candidate"}]}),
         encoding="utf-8",
     )
     import job_web

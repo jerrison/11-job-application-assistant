@@ -1993,7 +1993,7 @@ def test_build_auth_result_uses_unknown_status_without_explicit_rejection():
         "job_url": "https://factset.wd108.myworkdayjobs.com/FactSetCareers/job/example",
         "company": "FactSet",
         "job_title": "Senior PM",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": "https://factset.wd108.myworkdayjobs.com/en-US/FactSetCareers/job/example/apply/applyManually",
@@ -2026,7 +2026,7 @@ def test_build_auth_result_marks_maintenance_retryable():
         "job_url": "https://wd1.myworkdaysite.com/en-US/recruiting/snapchat/snap/job/example",
         "company": "Snap Inc.",
         "job_title": "Principal Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": "https://community.workday.com/maintenance-page",
@@ -2057,7 +2057,7 @@ def test_build_auth_result_marks_missing_page_as_job_closed():
         "job_url": "https://adobe.wd5.myworkdayjobs.com/en-US/external_experienced/job/example",
         "company": "Adobe",
         "job_title": "Principal Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": payload["job_url"],
@@ -2092,7 +2092,7 @@ def test_build_auth_result_preserves_auth_state_hint_when_final_page_is_unknown(
         "job_url": "https://liveramp.wd5.myworkdayjobs.com/LiveRampCareers/job/example",
         "company": "LiveRamp",
         "job_title": "Lead Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": "chrome-error://chromewebdata/",
@@ -2319,7 +2319,7 @@ def test_run_workday_auth_flow_returns_auth_result_when_create_account_step_rais
         "job_url": "https://calix.wd1.myworkdayjobs.com/External/job/example",
         "company": "Calix",
         "job_title": "Senior Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": payload["job_url"],
@@ -2339,7 +2339,7 @@ def test_run_workday_auth_flow_returns_auth_result_when_create_account_step_rais
                             with mock.patch.object(mod, "_do_create_account", side_effect=RuntimeError("fill failed")):
                                 result = mod._run_workday_auth_flow(
                                     page,
-                                    "jerrisonli@gmail.com",
+                                    "candidate@example.com",
                                     "password",
                                     payload=payload,
                                     job_url=payload["job_url"],
@@ -2360,7 +2360,7 @@ def test_run_workday_auth_flow_marks_post_create_account_credential_rejection_as
         "job_url": "https://walmart.wd5.myworkdayjobs.com/en-US/WalmartExternal/job/example",
         "company": "Walmart Inc.",
         "job_title": "Principal, Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     sign_in_markers = {
         "page_url": "https://walmart.wd5.myworkdayjobs.com/en-US/WalmartExternal/login",
@@ -2403,7 +2403,7 @@ def test_run_workday_auth_flow_marks_post_create_account_credential_rejection_as
                             with mock.patch.object(mod, "_do_create_account", return_value=False):
                                 result = mod._run_workday_auth_flow(
                                     page,
-                                    "jerrisonli@gmail.com",
+                                    "candidate@example.com",
                                     "password",
                                     payload=payload,
                                     job_url=payload["job_url"],
@@ -2424,7 +2424,7 @@ def test_run_workday_auth_flow_recovers_resumable_application_context_even_after
         "job_url": "https://autodesk.wd1.myworkdayjobs.com/Ext/job/example",
         "company": "Autodesk Inc.",
         "job_title": "Senior Principal Product Manager, Advanced Solutions",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": payload["job_url"],
@@ -2444,7 +2444,7 @@ def test_run_workday_auth_flow_recovers_resumable_application_context_even_after
                             with mock.patch.object(mod, "_do_create_account") as do_create_account:
                                 result = mod._run_workday_auth_flow(
                                     page,
-                                    "jerrisonli@gmail.com",
+                                    "candidate@example.com",
                                     "password",
                                     payload=payload,
                                     job_url=payload["job_url"],
@@ -2465,7 +2465,7 @@ def test_run_workday_auth_flow_returns_already_applied_after_auth_recovers_job_p
         "job_url": "https://autodesk.wd1.myworkdayjobs.com/Ext/job/example",
         "company": "Autodesk Inc.",
         "job_title": "Senior Principal Product Manager, Advanced Solutions",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": payload["job_url"],
@@ -2486,7 +2486,7 @@ def test_run_workday_auth_flow_returns_already_applied_after_auth_recovers_job_p
                                 with mock.patch.object(mod, "_do_create_account") as do_create_account:
                                     result = mod._run_workday_auth_flow(
                                         page,
-                                        "jerrisonli@gmail.com",
+                                        "candidate@example.com",
                                         "password",
                                         payload=payload,
                                         job_url=payload["job_url"],
@@ -2506,7 +2506,7 @@ def test_run_workday_auth_flow_continues_after_gws_auth_failure_and_records_it()
         "job_url": "https://factset.wd108.myworkdayjobs.com/FactSetCareers/job/example",
         "company": "FactSet",
         "job_title": "Senior Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     markers = {
         "page_url": "https://factset.wd108.myworkdayjobs.com/en-US/FactSetCareers/login",
@@ -2530,7 +2530,7 @@ def test_run_workday_auth_flow_continues_after_gws_auth_failure_and_records_it()
                             with mock.patch.object(mod, "_do_create_account", return_value=False) as do_create_account:
                                 result = mod._run_workday_auth_flow(
                                     page,
-                                    "jerrisonli@gmail.com",
+                                    "candidate@example.com",
                                     "password",
                                     payload=payload,
                                     job_url=payload["job_url"],
@@ -2551,7 +2551,7 @@ def test_run_workday_auth_flow_preserves_last_informative_auth_state_on_error_pa
         "job_url": "https://liveramp.wd5.myworkdayjobs.com/LiveRampCareers/job/example",
         "company": "LiveRamp",
         "job_title": "Lead Product Manager",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
     sign_in_markers = {
         "page_url": "https://liveramp.wd5.myworkdayjobs.com/en-US/LiveRampCareers/login",
@@ -2602,7 +2602,7 @@ def test_run_workday_auth_flow_preserves_last_informative_auth_state_on_error_pa
     ):
         result = mod._run_workday_auth_flow(
             page,
-            "jerrisonli@gmail.com",
+            "candidate@example.com",
             "password",
             payload=payload,
             job_url=payload["job_url"],
@@ -2739,12 +2739,12 @@ def test_run_workday_auth_flow_short_circuits_public_introduce_yourself_form():
         "job_url": "https://outsystems.wd503.myworkdayjobs.com/OutSystems/job/example",
         "company": "OutSystems, Inc.",
         "job_title": "Outbound Product Management Director - Public Sector",
-        "candidate_email": "jerrisonli@gmail.com",
+        "candidate_email": "candidate@example.com",
     }
 
     result = mod._run_workday_auth_flow(
         page,
-        "jerrisonli@gmail.com",
+        "candidate@example.com",
         "password",
         payload=payload,
         job_url=payload["job_url"],
@@ -4213,9 +4213,9 @@ def test_do_create_account_prefers_named_email_textbox_over_duplicate_data_email
     )
 
     with mock.patch.object(mod, "_is_application_page", return_value=False):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is False
 
-    assert named_email.fill_calls == ["jerrisonli@gmail.com"]
+    assert named_email.fill_calls == ["candidate@example.com"]
     assert duplicate_email_one.fill_calls == []
     assert duplicate_email_two.fill_calls == []
     assert password.fill_calls == ["Secret123!"]
@@ -4245,7 +4245,7 @@ def test_do_create_account_prefers_named_password_textbox_over_duplicate_data_pa
     )
 
     with mock.patch.object(mod, "_is_application_page", return_value=False):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is False
 
     assert named_password.fill_calls == ["Secret123!"]
     assert duplicate_password_one.fill_calls == []
@@ -4283,9 +4283,9 @@ def test_do_create_account_signs_in_when_workday_returns_to_login_gate():
         ),
         mock.patch.object(mod, "_do_sign_in", return_value=True) as sign_in,
     ):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is True
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is True
 
-    sign_in.assert_called_once_with(page, "jerrisonli@gmail.com", "Secret123!")
+    sign_in.assert_called_once_with(page, "candidate@example.com", "Secret123!")
 
 
 def test_do_sign_in_opens_email_entrypoint_before_filling_fields():
@@ -4293,10 +4293,10 @@ def test_do_sign_in_opens_email_entrypoint_before_filling_fields():
     page = _EmailEntrypointAuthPage()
 
     with mock.patch.object(mod, "_is_application_page", return_value=True):
-        assert mod._do_sign_in(page, "jerrisonli@gmail.com", "Secret123!") is True
+        assert mod._do_sign_in(page, "candidate@example.com", "Secret123!") is True
 
     assert page.sign_in_with_email.click_calls == 1
-    assert page.email.fill_calls == ["jerrisonli@gmail.com"]
+    assert page.email.fill_calls == ["candidate@example.com"]
     assert page.password.fill_calls == ["Secret123!"]
     assert page.sign_in_button.click_calls == 1
 
@@ -4309,7 +4309,7 @@ def test_do_sign_in_uses_workday_submit_button_selector():
         mock.patch.object(mod, "_click_workday_button", return_value=True) as click_button,
         mock.patch.object(mod, "_is_application_page", side_effect=[False, True]),
     ):
-        assert mod._do_sign_in(page, "jerrisonli@gmail.com", "Secret123!") is True
+        assert mod._do_sign_in(page, "candidate@example.com", "Secret123!") is True
 
     click_button.assert_called_once_with(
         page,
@@ -4325,11 +4325,11 @@ def test_do_password_reset_opens_email_entrypoint_before_forgot_password_lookup(
         mock.patch.object(mod, "_extract_workday_auth_markers", return_value={"auth_state": "sign_in_gate"}),
         mock.patch.object(mod, "_fetch_workday_email_link", return_value=None),
     ):
-        assert mod._do_password_reset(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_password_reset(page, "candidate@example.com", "Secret123!") is False
 
     assert page.sign_in_with_email.click_calls == 1
     assert page.forgot_button.click_calls == 1
-    assert page.email.fill_calls == ["jerrisonli@gmail.com"]
+    assert page.email.fill_calls == ["candidate@example.com"]
 
 
 def test_open_workday_create_account_clicks_link_when_sign_in_shell_is_misclassified():
@@ -4435,12 +4435,12 @@ def test_do_create_account_follows_account_verification_email_link_when_prompted
         ) as fetch_verification_link,
         mock.patch.object(mod, "_do_sign_in", return_value=True) as sign_in,
     ):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is True
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is True
 
     fetch_verification_link.assert_called_once()
     assert resend_button.click_calls == 0
     assert page.goto_calls == ["https://example.test/verify-account/token"]
-    sign_in.assert_called_once_with(page, "jerrisonli@gmail.com", "Secret123!")
+    sign_in.assert_called_once_with(page, "candidate@example.com", "Secret123!")
 
 
 def test_complete_workday_account_verification_prefers_existing_email_before_resend():
@@ -4483,7 +4483,7 @@ def test_complete_workday_account_verification_prefers_existing_email_before_res
         assert (
             mod._complete_workday_account_verification(
                 page,
-                "jerrisonli@gmail.com",
+                "candidate@example.com",
                 "Secret123!",
                 verification_started_at=started_at,
                 preferred_job_url="https://example.test/job/example/apply/applyManually",
@@ -4498,16 +4498,16 @@ def test_complete_workday_account_verification_prefers_existing_email_before_res
     )
     assert resend_button.click_calls == 0
     assert page.goto_calls == ["https://example.test/verify-account/token"]
-    sign_in.assert_called_once_with(page, "jerrisonli@gmail.com", "Secret123!")
+    sign_in.assert_called_once_with(page, "candidate@example.com", "Secret123!")
 
 
 def test_workday_resume_already_uploaded_detects_visible_uploaded_resume():
     mod = load_module("autofill_workday", "scripts/autofill_workday.py")
     page = _DummyPage(
-        body_text="Resume/CV Jerrison Li Resume - Turo Inc..pdf Successfully Uploaded! Save and Continue",
+        body_text="Resume/CV Candidate Name Resume - Turo Inc..pdf Successfully Uploaded! Save and Continue",
     )
 
-    assert mod._workday_resume_already_uploaded(page, "Jerrison Li Resume - Turo Inc..pdf") is True
+    assert mod._workday_resume_already_uploaded(page, "Candidate Name Resume - Turo Inc..pdf") is True
 
 
 def test_workday_resume_already_uploaded_detects_existing_delete_controls():
@@ -4516,26 +4516,26 @@ def test_workday_resume_already_uploaded_detects_existing_delete_controls():
         locators={
             "[data-automation-id='delete-file']": _DummyLocator(
                 [
-                    _DummyElement(aria_label="Delete Jerrison Li Resume - Turo Inc..pdf"),
-                    _DummyElement(aria_label="Delete Jerrison Li Resume - Turo Inc..pdf"),
+                    _DummyElement(aria_label="Delete Candidate Name Resume - Turo Inc..pdf"),
+                    _DummyElement(aria_label="Delete Candidate Name Resume - Turo Inc..pdf"),
                 ]
             )
         },
         body_text="",
     )
 
-    assert mod._workday_resume_already_uploaded(page, "Jerrison Li Resume - Turo Inc..pdf") is True
+    assert mod._workday_resume_already_uploaded(page, "Candidate Name Resume - Turo Inc..pdf") is True
 
 
 def test_dedupe_workday_uploaded_resume_items_clicks_all_extra_delete_buttons():
     mod = load_module("autofill_workday", "scripts/autofill_workday.py")
-    buttons = [_DummyElement(aria_label="Delete Jerrison Li Resume - Turo Inc..pdf") for _ in range(5)]
+    buttons = [_DummyElement(aria_label="Delete Candidate Name Resume - Turo Inc..pdf") for _ in range(5)]
     page = _DummyPage(
         locators={"[data-automation-id='delete-file']": _DummyLocator(buttons)},
         body_text="",
     )
 
-    deleted = mod._dedupe_workday_uploaded_resume_items(page, "Jerrison Li Resume - Turo Inc..pdf", keep=1)
+    deleted = mod._dedupe_workday_uploaded_resume_items(page, "Candidate Name Resume - Turo Inc..pdf", keep=1)
 
     assert deleted == 4
     assert buttons[0].click_calls == 0
@@ -4544,15 +4544,15 @@ def test_dedupe_workday_uploaded_resume_items_clicks_all_extra_delete_buttons():
 
 def test_dedupe_workday_uploaded_resume_items_removes_stale_resume_but_keeps_cover_letter():
     mod = load_module("autofill_workday", "scripts/autofill_workday.py")
-    stale_resume = _DummyElement(aria_label="Delete Jerrison Li Resume - Principal Product Manager page.pdf")
-    current_resume = _DummyElement(aria_label="Delete Jerrison Li Resume - Autodesk Inc..pdf")
-    cover_letter = _DummyElement(aria_label="Delete Jerrison Li Cover Letter - Autodesk Inc..pdf")
+    stale_resume = _DummyElement(aria_label="Delete Candidate Name Resume - Principal Product Manager page.pdf")
+    current_resume = _DummyElement(aria_label="Delete Candidate Name Resume - Autodesk Inc..pdf")
+    cover_letter = _DummyElement(aria_label="Delete Candidate Name Cover Letter - Autodesk Inc..pdf")
     page = _DummyPage(
         locators={"[data-automation-id='delete-file']": _DummyLocator([stale_resume, current_resume, cover_letter])},
         body_text="",
     )
 
-    deleted = mod._dedupe_workday_uploaded_resume_items(page, "Jerrison Li Resume - Autodesk Inc..pdf", keep=1)
+    deleted = mod._dedupe_workday_uploaded_resume_items(page, "Candidate Name Resume - Autodesk Inc..pdf", keep=1)
 
     assert deleted == 1
     assert stale_resume.click_calls == 1
@@ -4603,12 +4603,12 @@ def test_fill_my_experience_skips_resume_upload_when_current_resume_is_already_l
 
         def inner_text(self, selector: str) -> str:
             assert selector == "body"
-            return "Resume/CV Jerrison Li Resume - Turo Inc..pdf Successfully Uploaded!"
+            return "Resume/CV Candidate Name Resume - Turo Inc..pdf Successfully Uploaded!"
 
     file_input_item = _FileInputItem()
     page = _Page(file_input_item)
     out_dir = tmp_path
-    resume_path = out_dir / "Jerrison Li Resume - Turo Inc..pdf"
+    resume_path = out_dir / "Candidate Name Resume - Turo Inc..pdf"
     resume_path.write_text("resume", encoding="utf-8")
 
     with (
@@ -4671,11 +4671,11 @@ def test_fill_my_experience_prunes_stale_resume_when_current_resume_is_already_l
             return ""
 
     file_input_item = _FileInputItem()
-    stale_resume = _DummyElement(aria_label="Delete Jerrison Li Resume - Principal Product Manager page.pdf")
-    current_resume = _DummyElement(aria_label="Delete Jerrison Li Resume - Hewlett Packard Enterprise.pdf")
+    stale_resume = _DummyElement(aria_label="Delete Candidate Name Resume - Principal Product Manager page.pdf")
+    current_resume = _DummyElement(aria_label="Delete Candidate Name Resume - Hewlett Packard Enterprise.pdf")
     page = _Page(file_input_item, [stale_resume, current_resume])
     out_dir = tmp_path
-    resume_path = out_dir / "Jerrison Li Resume - Hewlett Packard Enterprise.pdf"
+    resume_path = out_dir / "Candidate Name Resume - Hewlett Packard Enterprise.pdf"
     resume_path.write_text("resume", encoding="utf-8")
 
     with (
@@ -4717,7 +4717,7 @@ def test_build_workday_education_entries_uses_profile_names_and_resume_years():
         """.strip()
     )
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "EXPERIENCE",
         "MOODY'S ANALYTICS — Associate Director, Product Management",
         "San Francisco, CA | August 2024–Present",
@@ -4864,7 +4864,7 @@ def test_fill_my_experience_populates_workday_education_fields_from_profile_and_
         """.strip()
     )
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "EXPERIENCE",
         "MOODY'S ANALYTICS — Associate Director, Product Management",
         "San Francisco, CA | August 2024–Present",
@@ -4942,7 +4942,7 @@ def test_fill_my_experience_corrects_prefilled_start_date_and_populates_role_des
     )
     out_dir = tmp_path
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "EXPERIENCE",
         "MOODY'S ANALYTICS — Associate Director, Product Management",
         "San Francisco, CA | August 2024–Present",
@@ -4989,7 +4989,7 @@ def test_fill_my_experience_populates_source_backed_language_and_skills(tmp_path
     page.evaluate.return_value = None
     out_dir = tmp_path
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "SKILLS & ADDITIONAL",
         "Technical: Python, SQL, TypeScript, Figma | ML/AI: Snowflake Cortex, LLM orchestration, RAG systems, GLMs | Data: A/B testing, analytics pipelines",
         "Languages: Spanish (native), Cantonese (native), Mandarin (advanced)",
@@ -5128,7 +5128,7 @@ def test_fill_my_experience_adds_missing_workday_education_rows_before_filling(t
         """.strip()
     )
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "EXPERIENCE",
         "MOODY'S ANALYTICS — Associate Director, Product Management",
         "San Francisco, CA | August 2024–Present",
@@ -5222,7 +5222,7 @@ def test_fill_my_experience_adds_missing_workday_work_experience_rows_before_fil
     }
     out_dir = tmp_path
     resume_lines = [
-        "JERRISON LI",
+        "CANDIDATE NAME",
         "EXPERIENCE",
         "MOODY'S ANALYTICS — Associate Director, Product Management",
         "San Francisco, CA | August 2024–Present",
@@ -5350,7 +5350,7 @@ def test_do_create_account_follows_verification_email_when_sign_in_reveals_verif
         ) as fetch_verification_link,
         mock.patch.object(mod, "_do_sign_in", side_effect=[False, True]) as sign_in,
     ):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is True
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is True
 
     fetch_verification_link.assert_called_once()
     assert resend_button.click_calls == 0
@@ -5378,10 +5378,10 @@ def test_do_create_account_prefers_last_visible_named_fields_on_combined_auth_sh
     )
 
     with mock.patch.object(mod, "_is_application_page", return_value=False):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is False
 
     assert sign_in_email.fill_calls == []
-    assert create_account_email.fill_calls == ["jerrisonli@gmail.com"]
+    assert create_account_email.fill_calls == ["candidate@example.com"]
     assert sign_in_password.fill_calls == []
     assert create_account_password.fill_calls == ["Secret123!"]
     assert verify_password.fill_calls == ["Secret123!"]
@@ -5411,7 +5411,7 @@ def test_do_create_account_ignores_hidden_cookie_checkbox_when_terms_checkbox_is
     )
 
     with mock.patch.object(mod, "_is_application_page", return_value=False):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is False
 
     assert hidden_cookie_checkbox.check_calls == 0
     assert visible_terms_checkbox.check_calls == 1
@@ -5437,7 +5437,7 @@ def test_do_create_account_fails_closed_when_only_hidden_email_locator_is_availa
     )
 
     with mock.patch.object(mod, "_is_application_page", return_value=False):
-        assert mod._do_create_account(page, "jerrisonli@gmail.com", "Secret123!") is False
+        assert mod._do_create_account(page, "candidate@example.com", "Secret123!") is False
 
     assert hidden_email.fill_calls == []
     assert password.fill_calls == []
@@ -5497,8 +5497,8 @@ def test_is_application_page_rejects_candidate_home_dashboard_shell():
     mod = load_module("autofill_workday", "scripts/autofill_workday.py")
     page = _DummyPage(
         locators={
-            "button:has-text('jerrisonli@gmail.com'), button:has-text('Settings')": _DummyLocator(
-                [_DummyElement("jerrisonli@gmail.com")]
+            "button:has-text('candidate@example.com'), button:has-text('Settings')": _DummyLocator(
+                [_DummyElement("candidate@example.com")]
             ),
             "main": _DummyLocator(
                 elements=[_DummyElement("main")],
@@ -5516,7 +5516,7 @@ def test_is_application_page_accepts_hpe_form_with_candidate_home_header_chrome(
     mod = load_module("autofill_workday", "scripts/autofill_workday.py")
     page = _DummyPage(
         locators={
-            "button:has-text('jerrisonli@gmail.com'), button:has-text('Settings')": _DummyLocator(
+            "button:has-text('candidate@example.com'), button:has-text('Settings')": _DummyLocator(
                 [_DummyElement("Settings")]
             ),
             "main": _DummyLocator(
@@ -5529,7 +5529,7 @@ def test_is_application_page_accepts_hpe_form_with_candidate_home_header_chrome(
         },
         role_locators={
             ("button", "Save and Continue"): _DummyLocator([_DummyElement("Save and Continue")]),
-            ("textbox", "First Name"): _DummyLocator([_DummyElement("Jerrison")]),
+            ("textbox", "First Name"): _DummyLocator([_DummyElement("Candidate")]),
         },
         body_text=(
             "Candidate Home Search for Jobs Back to Job Posting Product Manager Principal "
@@ -5789,7 +5789,7 @@ def test_fill_my_information_prefers_single_legal_name_fields_when_preferred_nam
     </div>
     """
 
-    profile = SimpleNamespace(first_name="Jerrison", last_name="Li", email="", phone="")
+    profile = SimpleNamespace(first_name="Candidate", last_name="Name", email="", phone="")
     application_profile = SimpleNamespace(location="", how_did_you_hear="")
 
     with sync_playwright() as playwright:
@@ -5803,9 +5803,9 @@ def test_fill_my_information_prefers_single_legal_name_fields_when_preferred_nam
         ):
             filled = mod._fill_my_information(page, profile, application_profile)
 
-        assert page.locator("#name--legalName--firstName").input_value() == "Jerrison"
+        assert page.locator("#name--legalName--firstName").input_value() == "Candidate"
         assert page.locator("#name--preferredName--firstName").input_value() == ""
-        assert page.locator("#name--legalName--lastName").input_value() == "Li"
+        assert page.locator("#name--legalName--lastName").input_value() == "Name"
         assert page.locator("#name--preferredName--lastName").input_value() == ""
         assert {item["field_name"] for item in filled} >= {"first_name", "last_name"}
 
@@ -6060,7 +6060,7 @@ def test_run_workday_browser_treats_public_profile_submit_boundary_as_review_in_
 
     def _fake_fill_my_information(page, *_args, **_kwargs):
         page.capture_state = "after_fill"
-        return [{"field_name": "first_name", "value": "Jerrison", "source": "master_resume.md", "filled": True}]
+        return [{"field_name": "first_name", "value": "Candidate", "source": "master_resume.md", "filled": True}]
 
     def _fake_fill_my_experience(_page, _out_dir):
         return [{"field_name": "resume", "value": "resume.pdf", "source": "documents/", "filled": True}]
@@ -6317,7 +6317,7 @@ def test_write_workday_review_artifacts_persists_filled_fields_to_report():
                         "field_name": "phone",
                         "label": "Phone",
                         "kind": "text",
-                        "value": "510-613-5192",
+                        "value": "555-0100",
                         "source": "master_resume.md",
                         "required": True,
                         "filled": True,

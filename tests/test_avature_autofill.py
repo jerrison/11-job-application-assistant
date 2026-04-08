@@ -533,8 +533,8 @@ class AvatureUrlTests(unittest.TestCase):
 
     def test_fill_application_questions_skips_prefilled_profile_like_fields_before_llm_generation(self):
         avature = load_module("autofill_avature_prefilled_profile_skip", "scripts/autofill_avature.py")
-        password_input = _PrefilledTextInput("JerrisonLi94102!")
-        password_confirmation_input = _PrefilledTextInput("JerrisonLi94102!")
+        password_input = _PrefilledTextInput("CandidateName94102!")
+        password_confirmation_input = _PrefilledTextInput("CandidateName94102!")
         question_specs = [
             {
                 "field_name": "password",

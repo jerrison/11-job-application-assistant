@@ -28,6 +28,7 @@ from autofill_common import (
     concatenate_images_vertically,
     select_shared_policy_option,
 )
+from candidate_runtime import document_filename
 from linkedin_submission_results import (
     _linkedin_job_closed_reason,
     _submission_result_path,
@@ -156,10 +157,16 @@ def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     # Prefer the current role's employer-named resume asset when it exists.
     resume_pdf = None
     if company_display_name:
+        preferred_resume_name = document_filename(
+            "Resume",
+            company_display_name,
+            ".pdf",
+            master_resume_path=candidate_profile_path,
+        )
         for preferred_path in (
-            role_submit_path(out_dir, f"Jerrison Li Resume - {company_display_name}.pdf"),
-            role_documents_path(out_dir, f"Jerrison Li Resume - {company_display_name}.pdf"),
-            out_dir / f"Jerrison Li Resume - {company_display_name}.pdf",
+            role_submit_path(out_dir, preferred_resume_name),
+            role_documents_path(out_dir, preferred_resume_name),
+            out_dir / preferred_resume_name,
         ):
             if preferred_path.exists():
                 resume_pdf = str(preferred_path)
@@ -182,13 +189,25 @@ def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     # Prefer the current role's employer-named cover letter asset when it exists.
     cover_letter_pdf = None
     if company_display_name:
+        preferred_cover_letter_pdf_name = document_filename(
+            "Cover Letter",
+            company_display_name,
+            ".pdf",
+            master_resume_path=candidate_profile_path,
+        )
+        preferred_cover_letter_docx_name = document_filename(
+            "Cover Letter",
+            company_display_name,
+            ".docx",
+            master_resume_path=candidate_profile_path,
+        )
         for preferred_path in (
-            role_submit_path(out_dir, f"Jerrison Li Cover Letter - {company_display_name}.pdf"),
-            role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_display_name}.pdf"),
-            out_dir / f"Jerrison Li Cover Letter - {company_display_name}.pdf",
-            role_submit_path(out_dir, f"Jerrison Li Cover Letter - {company_display_name}.docx"),
-            role_documents_path(out_dir, f"Jerrison Li Cover Letter - {company_display_name}.docx"),
-            out_dir / f"Jerrison Li Cover Letter - {company_display_name}.docx",
+            role_submit_path(out_dir, preferred_cover_letter_pdf_name),
+            role_documents_path(out_dir, preferred_cover_letter_pdf_name),
+            out_dir / preferred_cover_letter_pdf_name,
+            role_submit_path(out_dir, preferred_cover_letter_docx_name),
+            role_documents_path(out_dir, preferred_cover_letter_docx_name),
+            out_dir / preferred_cover_letter_docx_name,
         ):
             if preferred_path.exists():
                 cover_letter_pdf = str(preferred_path)

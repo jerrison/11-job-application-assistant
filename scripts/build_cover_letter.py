@@ -22,6 +22,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from candidate_runtime import load_candidate_runtime_profile
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
@@ -31,10 +32,6 @@ from docx_text import sanitize_docx_text
 
 FONT = "Calibri"
 COLOR_BLACK = RGBColor(0x33, 0x33, 0x33)
-CANDIDATE_NAME = "Jerrison Li"
-CANDIDATE_CONTACT = (
-    "San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com"
-)
 
 
 def _run(para, text, size, bold=False, italic=False, color=COLOR_BLACK):
@@ -54,6 +51,7 @@ def _run(para, text, size, bold=False, italic=False, color=COLOR_BLACK):
 
 def build_cover_letter(text: str, output_path: str):
     doc = Document()
+    candidate_profile = load_candidate_runtime_profile()
 
     section = doc.sections[0]
     section.page_width = Inches(8.5)
@@ -74,12 +72,12 @@ def build_cover_letter(text: str, output_path: str):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_after = Pt(2)
-    _run(p, CANDIDATE_NAME, Pt(14), bold=True)
+    _run(p, candidate_profile.full_name, Pt(14), bold=True)
 
     # Header: contact
     p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(16)
-    _run(p, CANDIDATE_CONTACT, Pt(10), color=RGBColor(0x55, 0x55, 0x55))
+    _run(p, candidate_profile.contact_line(include_location=True), Pt(10), color=RGBColor(0x55, 0x55, 0x55))
 
     # Ensure greeting
     body = text.strip()
@@ -90,14 +88,14 @@ def build_cover_letter(text: str, output_path: str):
 
     # Ensure signoff
     if not re.search(r"\n(Best regards|Sincerely|Regards|Warm regards|Thank you),?\s*\n", body, re.IGNORECASE):
-        body = body.rstrip() + "\n\nBest regards,\nJerrison Li"
+        body = body.rstrip() + f"\n\nBest regards,\n{candidate_profile.full_name}"
 
     # Body paragraphs
     paragraphs = [para.strip() for para in body.split("\n\n") if para.strip()]
     for para_text in paragraphs:
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(8)
-        # Handle signoff line breaks (e.g. "Best regards,\nJerrison Li")
+        # Handle signoff line breaks (e.g. "Best regards,\nCandidate Name")
         lines = para_text.split("\n")
         for i, line in enumerate(lines):
             if i > 0:

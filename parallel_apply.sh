@@ -14,6 +14,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 source "$SCRIPT_DIR/scripts/llm_common.sh"
+CANDIDATE_NAME="${JOB_ASSETS_CANDIDATE_NAME:-Candidate Name}"
 
 MAX_RETRIES=2
 DRY_RUN=false
@@ -99,7 +100,7 @@ discover_jobs() {
             local documents_dir
             documents_dir=$(read_meta "$meta_file" documents_dir)
             [ -n "$documents_dir" ] || documents_dir="$out_dir"
-            [ -f "$documents_dir/Jerrison Li Resume - ${company_proper}.pdf" ] && continue
+            [ -f "$documents_dir/${CANDIDATE_NAME} Resume - ${company_proper}.pdf" ] && continue
         fi
         echo "$meta_file" >> "$outfile"
     done
@@ -154,9 +155,9 @@ else
         [ -n "$CONTENT_DIR" ] || CONTENT_DIR="$OUT_DIR"
         [ -n "$DOCUMENTS_DIR" ] || DOCUMENTS_DIR="$OUT_DIR"
 
-        RESUME_DOCX="${DOCUMENTS_DIR}/Jerrison Li Resume - ${COMPANY_PROPER}.docx"
-        RESUME_PDF="${DOCUMENTS_DIR}/Jerrison Li Resume - ${COMPANY_PROPER}.pdf"
-        CL_DOCX="${DOCUMENTS_DIR}/Jerrison Li Cover Letter - ${COMPANY_PROPER}.docx"
+        RESUME_DOCX="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Resume - ${COMPANY_PROPER}.docx"
+        RESUME_PDF="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Resume - ${COMPANY_PROPER}.pdf"
+        CL_DOCX="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Cover Letter - ${COMPANY_PROPER}.docx"
 
         echo "[$(date '+%H:%M:%S')] BUILD  ${COMPANY}/${ROLE}"
         job_assets_finalize_resume_content "${CONTENT_DIR}/resume_content.json" 2>&1

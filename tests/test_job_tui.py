@@ -8,7 +8,7 @@ import pytest
 pytest.importorskip("textual", reason="textual not installed")
 
 from textual.app import App
-from textual.widgets import Button, Select, Static, TextArea
+from textual.widgets import Button, Input, Select, Static, TextArea
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -45,6 +45,12 @@ class _DetailHarness(App):
     def on_mount(self) -> None:
         self.install_screen(JobDetailScreen(1), "detail")
         self.push_screen("detail")
+
+
+class _SettingsHarness(App):
+    def on_mount(self) -> None:
+        self.install_screen(job_tui.SettingsScreen(), "settings")
+        self.push_screen("settings")
 
 
 @pytest.mark.anyio
@@ -279,3 +285,110 @@ async def test_job_detail_screen_exposes_distinct_reset_to_new_action(monkeypatc
 
         await pilot.click("#btn-draft-reset-to-new")
         await _wait_until(called.is_set)
+
+
+@pytest.mark.anyio
+async def test_settings_screen_saves_shared_materials_and_credentials(monkeypatch):
+    app = _SettingsHarness()
+    captured: dict = {}
+
+    monkeypatch.setattr(
+        job_tui,
+        "load_settings",
+        lambda: {
+            "materials": {
+                "master_resume": {
+                    "content": "",
+                    "path": "/tmp/master_resume.md",
+                    "exists": False,
+                    "has_content": False,
+                },
+                "work_stories": {
+                    "content": "",
+                    "path": "/tmp/work_stories.md",
+                    "exists": False,
+                    "has_content": False,
+                },
+                "candidate_context": {
+                    "content": "",
+                    "path": "/tmp/candidate_context.md",
+                    "exists": False,
+                    "has_content": False,
+                },
+                "application_profile": {
+                    "content": "",
+                    "path": "/tmp/application_profile.md",
+                    "exists": False,
+                    "has_content": False,
+                },
+            },
+            "providers": {
+                "default_provider": "openai",
+                "provider_chain": "openai,gemini",
+                "openai_model": "gpt-5.4",
+                "gemini_model": "gemini-3-flash-preview",
+                "gemini_flash_model": "gemini-3-flash-preview",
+                "codex_model": "gpt-5.4",
+                "claude_model": "claude-sonnet-4-6",
+                "steel_local": False,
+                "steel_base_url": "",
+            },
+            "credentials": {
+                "openai_api_key": {"configured": False, "preview": ""},
+                "openai_api_keys": {"configured": False, "preview": ""},
+                "gemini_api_key": {"configured": False, "preview": ""},
+                "codex_api_key": {"configured": False, "preview": ""},
+                "anthropic_api_key": {"configured": False, "preview": ""},
+                "steel_api_key": {"configured": False, "preview": ""},
+            },
+        },
+    )
+    monkeypatch.setattr(
+        job_tui,
+        "load_bootstrap",
+        lambda: {
+            "onboarding": {
+                "complete": False,
+                "required_materials": {"master_resume": False},
+                "recommended_materials": {
+                    "work_stories": False,
+                    "candidate_context": False,
+                    "application_profile": False,
+                },
+                "credentials_ready": False,
+            }
+        },
+    )
+
+    def fake_save_settings(payload):
+        captured.update(payload)
+        return {
+            "materials": {
+                key: {
+                    "content": value,
+                    "path": f"/tmp/{key}.md",
+                    "exists": True,
+                    "has_content": bool(value.strip()),
+                }
+                for key, value in payload.get("materials", {}).items()
+            },
+            "providers": payload.get("providers", {}),
+            "credentials": {
+                "openai_api_key": {"configured": True, "preview": "sk-t...5678"},
+            },
+        }
+
+    monkeypatch.setattr(job_tui, "save_settings", fake_save_settings)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        screen = app.screen
+
+        screen.query_one("#settings-material-editor", TextArea).text = "# Resume\n"
+        screen.query_one("#settings-openai-api-key", Input).value = "sk-test-12345678"
+
+        await pilot.click("#btn-settings-save")
+        await _wait_until(lambda: bool(captured))
+
+    assert captured["materials"]["master_resume"] == "# Resume\n"
+    assert captured["credentials"]["openai_api_key"] == "sk-test-12345678"

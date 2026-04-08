@@ -65,7 +65,7 @@ def _filled_autofill_report_payload(**overrides):
                 "label": "Full Name",
                 "kind": "text",
                 "status": "filled",
-                "value": "Jerrison Li",
+                "value": "Candidate Name",
                 "source": "application_profile.md",
             }
         ]
@@ -1238,8 +1238,8 @@ def test_sync_job_from_disk_reclassifies_pending_user_input_payload_without_subm
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Example.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Example.pdf").write_text("cover", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Example.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Example.pdf").write_text("cover", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -1513,8 +1513,8 @@ def test_sync_job_from_disk_promotes_ready_draft_proof_and_clears_stale_failure_
     docs_dir.mkdir(parents=True)
     (out_dir / ".active_submit_dir").write_text("submit-20260326T010203Z\n", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -1552,8 +1552,8 @@ def test_sync_job_from_disk_promotes_ready_draft_proof_and_backfills_unknown_boa
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Zero Hash.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Zero Hash.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Zero Hash.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Zero Hash.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "breezy_autofill_payload.json").write_text(
         json.dumps({"board": "breezy", "provider": "openai", "artifacts": {}}),
         encoding="utf-8",
@@ -1594,8 +1594,8 @@ def test_sync_job_from_disk_trusts_newer_ready_draft_proof_over_stale_unsupporte
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Identity.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Identity.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Identity.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Identity.pdf").write_text("cover letter", encoding="utf-8")
     unsupported_path = submit_dir / "unsupported_board.json"
     unsupported_path.write_text(
         json.dumps({"status": "unsupported_board", "message": "Unsupported board."}),
@@ -1648,8 +1648,8 @@ def test_sync_job_from_disk_prefers_current_repo_output_dir_over_stale_clone_pat
     old_submit.mkdir(parents=True)
 
     (current_out / "draft_summary.png").write_text("png", encoding="utf-8")
-    (current_docs / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (current_docs / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (current_docs / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (current_docs / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (current_submit / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -1704,8 +1704,8 @@ def test_sync_job_from_disk_canonicalizes_symlinked_legacy_output_dir(db, tmp_pa
     legacy_repo.symlink_to(current_repo, target_is_directory=True)
 
     (current_out / "draft_summary.png").write_text("png", encoding="utf-8")
-    (current_docs / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (current_docs / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (current_docs / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (current_docs / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (current_submit / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -1807,8 +1807,8 @@ def test_sync_job_from_disk_does_not_promote_stale_ready_draft_status_when_proof
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "application_answers.json").write_text(json.dumps({"answers": []}), encoding="utf-8")
     (submit_dir / "ashby_application_page.html").write_text("<html></html>", encoding="utf-8")
     (out_dir / "draft_status.json").write_text(
@@ -1844,8 +1844,8 @@ def test_sync_job_from_disk_does_not_trust_stale_ready_draft_hint_when_current_p
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "application_answers.json").write_text(
         json.dumps(
             {
@@ -1913,8 +1913,8 @@ def test_sync_job_from_disk_refreshes_stale_draft_status_when_live_greenhouse_pr
     (historical_submit / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     (historical_submit / "greenhouse_autofill_review.png").write_text("png", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (out_dir / "draft_status.json").write_text(
         json.dumps(
             {
@@ -2030,8 +2030,8 @@ def test_sync_job_from_disk_archives_ready_draft_duplicate_when_locked_submissio
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "application_answers.json").write_text(json.dumps({"answers": []}), encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
@@ -2080,8 +2080,8 @@ def test_repair_stale_processing_jobs_promotes_ready_draft_rows(db, tmp_path):
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2183,8 +2183,8 @@ def test_sync_job_from_disk_promotes_ready_draft_proof_even_with_stale_failed_re
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2231,8 +2231,8 @@ def test_sync_job_from_disk_is_noop_for_ready_draft_with_stale_stopped_result(db
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2272,8 +2272,8 @@ def test_sync_job_from_disk_trusts_current_stopped_result_over_ready_draft_proof
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     (submit_dir / "application_submission_result.json").write_text(
@@ -2309,8 +2309,8 @@ def test_sync_job_from_disk_trusts_active_skipped_auth_result_over_stale_legacy_
     docs_dir.mkdir(parents=True)
     (out_dir / ".active_submit_dir").write_text("submit-20260406T205644Z\n", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Uber Eats.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Uber Eats.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Uber Eats.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Uber Eats.pdf").write_text("cover letter", encoding="utf-8")
     (stale_submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (stale_submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     (active_submit_dir / "application_submission_result.json").write_text(
@@ -2343,8 +2343,8 @@ def test_sync_job_from_disk_trusts_same_attempt_skipped_captcha_result_over_fres
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Zūm.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Zūm.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Zūm.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Zūm.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "application_submission_result.json").write_text(
         json.dumps(
             {
@@ -2382,8 +2382,8 @@ def test_sync_job_from_disk_trusts_active_job_closed_result_over_stale_legacy_dr
     docs_dir.mkdir(parents=True)
     (out_dir / ".active_submit_dir").write_text("submit-20260406T222155Z\n", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Harvey.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Harvey.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Harvey.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Harvey.pdf").write_text("cover letter", encoding="utf-8")
     (stale_submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (stale_submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     (active_submit_dir / "application_submission_result.json").write_text(
@@ -2419,8 +2419,8 @@ def test_sync_job_from_disk_promotes_ready_draft_proof_even_when_row_is_already_
     docs_dir.mkdir(parents=True)
     (out_dir / ".active_submit_dir").write_text("submit-20260329T183545Z\n", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (active_submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2457,8 +2457,8 @@ def test_sync_job_from_disk_keeps_confirmed_submission_stable_when_stale_result_
     docs_dir.mkdir(parents=True)
     confirmed_at = "2026-04-02T15:33:19+00:00"
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Acme.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Acme.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Acme.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text("{}", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_pre_submit.png").write_text("png", encoding="utf-8")
     (submit_dir / "application_submission_result.json").write_text(
@@ -2726,8 +2726,8 @@ def test_sync_job_from_disk_regenerates_missing_draft_summary_before_promoting_r
     docs_dir = out_dir / "documents"
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
-    (docs_dir / "Jerrison Li Resume - Quizlet.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Quizlet.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Quizlet.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Quizlet.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "linkedin_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2775,8 +2775,8 @@ def test_sync_job_from_disk_ignores_stale_pending_user_input_from_other_board(db
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Engineer.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Engineer.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Engineer.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Engineer.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "avature_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),
         encoding="utf-8",
@@ -2837,8 +2837,8 @@ def test_sync_job_from_disk_promotes_downstream_board_proof_after_linkedin_exter
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Aircall.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Aircall.pdf").write_text("cover letter", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Aircall.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Aircall.pdf").write_text("cover letter", encoding="utf-8")
     (submit_dir / "linkedin_autofill_payload.json").write_text("{}", encoding="utf-8")
     (submit_dir / "greenhouse_autofill_report.json").write_text(
         json.dumps(_filled_autofill_report_payload()),

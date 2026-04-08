@@ -20,6 +20,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
+    MASTER_RESUME_PATH,
     PROJECT_ROOT,
     GeneratedAnswerBlockersError,
     build_onsite_start_location_answer,
@@ -1421,7 +1422,7 @@ def _write_unknown_questions(out_dir: Path, unknown_questions: list[dict]) -> No
 def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     job_url = str(meta.get("jd_source_resolved") or meta["jd_source"])
     application_url = _application_url_for_job_url(job_url)

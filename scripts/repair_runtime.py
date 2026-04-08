@@ -5,11 +5,18 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import APP_HOME_ENV, is_packaged_runtime, repair_supervisor_lock_path, repair_supervisor_pid_path
+from runtime_entrypoints import python_script_command
 from worker_subprocess import popen_worker_subprocess
 
 _REPAIR_SUPERVISOR_PID_BASENAME = "jobs.db.repair_supervisor.pid"
@@ -50,11 +57,17 @@ class RepairSupervisorConfig:
         )
 
 
-def _pid_path(project_root: Path) -> Path:
+def _pid_path(project_root: Path, *, environ: Mapping[str, str] | None = None) -> Path:
+    env = dict(environ) if environ is not None else {}
+    if env.get(APP_HOME_ENV, "").strip() or is_packaged_runtime(environ=env):
+        return repair_supervisor_pid_path(environ=env)
     return project_root / _REPAIR_SUPERVISOR_PID_BASENAME
 
 
-def _startup_lock_path(project_root: Path) -> Path:
+def _startup_lock_path(project_root: Path, *, environ: Mapping[str, str] | None = None) -> Path:
+    env = dict(environ) if environ is not None else {}
+    if env.get(APP_HOME_ENV, "").strip() or is_packaged_runtime(environ=env):
+        return repair_supervisor_lock_path(environ=env)
     return project_root / _REPAIR_SUPERVISOR_START_LOCK_BASENAME
 
 
@@ -79,15 +92,16 @@ def _read_startup_lock_owner_pid(lock_path: Path) -> int | None:
         return None
 
 
-def _acquire_startup_lock(*, project_root: Path) -> bool:
-    lock_path = _startup_lock_path(project_root)
+def _acquire_startup_lock(*, project_root: Path, environ: Mapping[str, str] | None = None) -> bool:
+    env = dict(os.environ if environ is None else environ)
+    lock_path = _startup_lock_path(project_root, environ=env)
     deadline = time.monotonic() + _REPAIR_SUPERVISOR_START_LOCK_WAIT_TIMEOUT_SECONDS
 
     while True:
         try:
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
-            if is_repair_supervisor_running(project_root=project_root):
+            if is_repair_supervisor_running(project_root=project_root, environ=env):
                 return False
             owner_pid = _read_startup_lock_owner_pid(lock_path)
             if owner_pid is not None and _process_exists(owner_pid):
@@ -105,16 +119,18 @@ def _acquire_startup_lock(*, project_root: Path) -> bool:
         return True
 
 
-def _release_startup_lock(*, project_root: Path) -> None:
-    _startup_lock_path(project_root).unlink(missing_ok=True)
+def _release_startup_lock(*, project_root: Path, environ: Mapping[str, str] | None = None) -> None:
+    env = dict(os.environ if environ is None else environ)
+    _startup_lock_path(project_root, environ=env).unlink(missing_ok=True)
 
 
-def is_repair_supervisor_running(*, project_root: Path) -> bool:
+def is_repair_supervisor_running(*, project_root: Path, environ: Mapping[str, str] | None = None) -> bool:
     global _repair_supervisor_proc
+    env = dict(os.environ if environ is None else environ)
     if _repair_supervisor_proc is not None and _repair_supervisor_proc.poll() is None:
         return True
 
-    pid_path = _pid_path(project_root)
+    pid_path = _pid_path(project_root, environ=env)
     if not pid_path.exists():
         return False
 
@@ -132,13 +148,13 @@ def ensure_repair_supervisor_running(*, project_root: Path, environ: Mapping[str
     env = dict(os.environ if environ is None else environ)
     if not repair_supervisor_enabled(env):
         return False
-    if is_repair_supervisor_running(project_root=project_root):
+    if is_repair_supervisor_running(project_root=project_root, environ=env):
         return False
-    if not _acquire_startup_lock(project_root=project_root):
+    if not _acquire_startup_lock(project_root=project_root, environ=env):
         return False
 
     try:
-        if is_repair_supervisor_running(project_root=project_root):
+        if is_repair_supervisor_running(project_root=project_root, environ=env):
             return False
 
         config = RepairSupervisorConfig.from_env(env)
@@ -151,33 +167,27 @@ def ensure_repair_supervisor_running(*, project_root: Path, environ: Mapping[str
         )
 
         _repair_supervisor_proc = popen_worker_subprocess(
-            [
-                "uv",
-                "run",
-                "--project",
-                str(project_root),
-                "python",
-                str(project_root / "scripts" / "repair_supervisor.py"),
-            ],
+            python_script_command(project_root / "scripts" / "repair_supervisor.py", environ=env),
             cwd=project_root,
             env=env,
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        _pid_path(project_root).write_text(str(_repair_supervisor_proc.pid), encoding="utf-8")
+        _pid_path(project_root, environ=env).write_text(str(_repair_supervisor_proc.pid), encoding="utf-8")
         return True
     except Exception:
         if _repair_supervisor_proc is not None and _repair_supervisor_proc.poll() is None:
-            stop_repair_supervisor(project_root=project_root)
+            stop_repair_supervisor(project_root=project_root, environ=env)
         raise
     finally:
-        _release_startup_lock(project_root=project_root)
+        _release_startup_lock(project_root=project_root, environ=env)
 
 
-def stop_repair_supervisor(*, project_root: Path) -> None:
+def stop_repair_supervisor(*, project_root: Path, environ: Mapping[str, str] | None = None) -> None:
     global _repair_supervisor_proc
-    pid_path = _pid_path(project_root)
+    env = dict(os.environ if environ is None else environ)
+    pid_path = _pid_path(project_root, environ=env)
     pid: int | None = None
     if pid_path.exists():
         try:

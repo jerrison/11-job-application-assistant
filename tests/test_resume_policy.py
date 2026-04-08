@@ -33,15 +33,19 @@ class ResumePolicyTests(unittest.TestCase):
         self.assertEqual(draft_resume.SELECTION_RULES["lyft"], (1, 1))
         self.assertEqual(draft_resume.SELECTION_RULES["allstate"], (1, 1))
 
-    def test_build_resume_contact_includes_github(self):
+    def test_build_resume_uses_runtime_profile_for_contact_info(self):
         source = (PROJECT_ROOT / "scripts/build_resume.py").read_text()
-        self.assertIn("linkedin.com/in/jerrison/", source)
-        self.assertNotIn("https://github.com/jerrison", source)
+        self.assertIn("load_candidate_runtime_profile", source)
+        self.assertIn("_candidate_contact_for_input", source)
+        self.assertNotIn("candidate@example.com", source)
+        self.assertNotIn("linkedin.com/in/candidate/", source)
 
-    def test_build_cover_letter_contact_matches_fixed_contact_line(self):
+    def test_build_cover_letter_uses_runtime_profile_for_contact_info(self):
         source = (PROJECT_ROOT / "scripts/build_cover_letter.py").read_text()
-        self.assertIn("linkedin.com/in/jerrison/", source)
-        self.assertIn("San Francisco, CA", source)
+        self.assertIn("load_candidate_runtime_profile", source)
+        self.assertIn("candidate_profile.contact_line(include_location=True)", source)
+        self.assertNotIn("candidate@example.com", source)
+        self.assertNotIn("linkedin.com/in/candidate/", source)
 
     def test_docx_text_sanitizer_drops_xml_invalid_control_chars(self):
         docx_text = load_module("docx_text", "scripts/docx_text.py")
@@ -98,7 +102,7 @@ class ResumePolicyTests(unittest.TestCase):
             jd_path.write_text(json.dumps({"location": "Denver, CO"}), encoding="utf-8")
 
             contact = build_resume._candidate_contact_for_input(resume_path)
-            self.assertTrue(contact.startswith("jerrisonli@gmail.com"))
+            self.assertTrue(contact.startswith("candidate@example.com"))
             self.assertNotIn("San Francisco, CA", contact)
 
     def test_build_resume_keeps_location_when_any_listed_role_location_is_california(self):

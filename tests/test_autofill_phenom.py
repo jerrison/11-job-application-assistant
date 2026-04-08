@@ -113,7 +113,7 @@ def test_best_select_option_label_supports_case_insensitive_prefix_matching():
 def test_candidate_name_parts_preserve_multi_word_last_names():
     mod = load_module("autofill_phenom", "scripts/autofill_phenom.py")
 
-    assert mod._candidate_name_parts("Jerrison Li") == ("Jerrison", "Li")
+    assert mod._candidate_name_parts("Candidate Name") == ("Candidate", "Name")
     assert mod._candidate_name_parts("Mary Jane Watson") == ("Mary", "Jane Watson")
 
 

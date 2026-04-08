@@ -22,7 +22,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
-    PROJECT_ROOT,
+    MASTER_RESUME_PATH,
     append_url_path_suffix,
     find_cover_letter_file,
     find_cover_letter_text,
@@ -559,7 +559,7 @@ def _discover_and_inject_live_questions(page, payload_path: Path) -> None:
         return
 
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     draft_overrides = _load_draft_overrides(out_dir)
     steps, unknown_questions = _reconcile_live_steps(
@@ -618,7 +618,7 @@ def _build_payload(out_dir: Path, provider: str) -> dict:
     meta = load_meta(out_dir)
     job_url = str(meta.get("jd_source_resolved") or meta.get("jd_source") or "")
     application_url = _resolve_application_url(job_url)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     resume_path = find_resume_file(out_dir)

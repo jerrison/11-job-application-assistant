@@ -36,7 +36,6 @@ from textual.widgets import (
 log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = REPO_ROOT / "jobs.db"
 
 # ---------------------------------------------------------------------------
 # Database helpers — thin wrappers so the TUI never imports job_db at module
@@ -45,6 +44,7 @@ DB_PATH = REPO_ROOT / "jobs.db"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import saved_portal_import  # noqa: E402
+from app_paths import jobs_db_path, worker_pid_path  # noqa: E402
 from application_submit_common import (  # noqa: E402
     load_pending_user_input_for_submit_attempt,
     resolve_current_submit_artifacts,
@@ -72,7 +72,6 @@ from job_db import (  # noqa: E402
     update_job_metrics,
     update_status,
 )
-from job_worker import PID_FILE as WORKER_PID_FILE  # noqa: E402
 from llm_provider import VALID_PROVIDERS  # noqa: E402
 from output_layout import role_submit_dir  # noqa: E402
 from pipeline_draft_proof import draft_review_state  # noqa: E402
@@ -82,13 +81,37 @@ from pipeline_orchestrator import (  # noqa: E402
     regenerate_job,
     reset_job_to_new,
 )
+from runtime_entrypoints import python_script_command  # noqa: E402
+from runtime_policy import ensure_action_allowed  # noqa: E402
+from runtime_trace import configure_runtime_trace, emit_trace  # noqa: E402
+from settings_store import import_material, load_bootstrap, load_settings, save_settings  # noqa: E402
 
 SAVED_PORTAL_SPECS = tuple(saved_portal_import.list_saved_portals())
+DB_PATH = jobs_db_path()
+_SETTINGS_MATERIAL_KEYS = (
+    ("Master resume", "master_resume"),
+    ("Work stories", "work_stories"),
+    ("Candidate context", "candidate_context"),
+    ("Application profile", "application_profile"),
+)
+_SETTINGS_MATERIAL_LABELS = dict(_SETTINGS_MATERIAL_KEYS)
+_SETTINGS_CREDENTIAL_FIELDS = (
+    ("openai_api_key", "settings-openai-api-key"),
+    ("openai_api_keys", "settings-openai-api-keys"),
+    ("gemini_api_key", "settings-gemini-api-key"),
+    ("codex_api_key", "settings-codex-api-key"),
+    ("anthropic_api_key", "settings-anthropic-api-key"),
+    ("steel_api_key", "settings-steel-api-key"),
+)
 
 
 def _get_conn() -> sqlite3.Connection:
     """Return a lightweight connection (PRAGMAs only, no migrations)."""
     return open_db(DB_PATH)
+
+
+def _worker_pid_file() -> Path:
+    return worker_pid_path()
 
 
 def _get_recent_events(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
@@ -2039,6 +2062,205 @@ class StatsScreen(Screen):
         self.app.switch_mode("add")
 
 
+class SettingsScreen(Screen):
+    BINDINGS = [
+        Binding("d", "switch_dash", "Dashboard"),
+        Binding("q", "switch_queue", "Queue"),
+        Binding("a", "switch_add", "Add Jobs"),
+        Binding("s", "switch_stats", "Stats"),
+    ]
+
+    DEFAULT_CSS = """
+    SettingsScreen {
+        layout: vertical;
+    }
+    #settings-scroll {
+        padding: 0 1;
+    }
+    #settings-onboarding,
+    #settings-feedback {
+        margin: 1 0;
+    }
+    #settings-material-editor {
+        height: 18;
+        margin: 1 0;
+    }
+    .settings-row {
+        margin: 0 0 1 0;
+    }
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._active_material_key = "master_resume"
+        self._material_cache = {value: "" for _, value in _SETTINGS_MATERIAL_KEYS}
+        self._material_meta: dict[str, dict] = {}
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll(id="settings-scroll"):
+            yield Static("", id="settings-onboarding")
+            yield Select(_SETTINGS_MATERIAL_KEYS, value=self._active_material_key, id="settings-material-select")
+            yield Input(
+                placeholder="Local file path or public Google Drive/Docs URL",
+                id="settings-import-source",
+                classes="settings-row",
+            )
+            with Horizontal(classes="settings-row"):
+                yield Button("Import Path/URL", id="btn-settings-import")
+                yield Button("Save Settings", variant="primary", id="btn-settings-save")
+            yield TextArea(id="settings-material-editor")
+            yield Select(
+                [
+                    ("OpenAI", "openai"),
+                    ("Gemini", "gemini"),
+                    ("Gemini Flash", "gemini-flash"),
+                    ("Codex", "codex"),
+                    ("Claude", "claude"),
+                ],
+                value="openai",
+                id="settings-default-provider",
+            )
+            yield Input(placeholder="openai,gemini", id="settings-provider-chain", classes="settings-row")
+            yield Input(placeholder="OpenAI API key", password=True, id="settings-openai-api-key", classes="settings-row")
+            yield Input(
+                placeholder="OpenAI key pool (comma-separated)",
+                password=True,
+                id="settings-openai-api-keys",
+                classes="settings-row",
+            )
+            yield Input(placeholder="Gemini API key", password=True, id="settings-gemini-api-key", classes="settings-row")
+            yield Input(placeholder="Codex API key", password=True, id="settings-codex-api-key", classes="settings-row")
+            yield Input(
+                placeholder="Anthropic API key",
+                password=True,
+                id="settings-anthropic-api-key",
+                classes="settings-row",
+            )
+            yield Input(placeholder="Steel API key", password=True, id="settings-steel-api-key", classes="settings-row")
+            yield Static("", id="settings-feedback")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._reload_from_store()
+
+    def _stash_active_material(self) -> None:
+        self._material_cache[self._active_material_key] = self.query_one("#settings-material-editor", TextArea).text
+
+    def _load_active_material(self) -> None:
+        self.query_one("#settings-material-editor", TextArea).text = self._material_cache.get(self._active_material_key, "")
+
+    def _render_onboarding_summary(self, bootstrap: dict) -> str:
+        onboarding = bootstrap.get("onboarding") or {}
+        required = onboarding.get("required_materials") or {}
+        recommended = onboarding.get("recommended_materials") or {}
+        return "\n".join(
+            [
+                f"Onboarding complete: {'yes' if onboarding.get('complete') else 'no'}",
+                f"Master resume ready: {'yes' if required.get('master_resume') else 'no'}",
+                f"Provider credentials ready: {'yes' if onboarding.get('credentials_ready') else 'no'}",
+                f"Work stories ready: {'yes' if recommended.get('work_stories') else 'no'}",
+                f"Candidate context ready: {'yes' if recommended.get('candidate_context') else 'no'}",
+                f"Application profile ready: {'yes' if recommended.get('application_profile') else 'no'}",
+            ]
+        )
+
+    def _apply_store_payload(self, settings_payload: dict, bootstrap_payload: dict) -> None:
+        materials = settings_payload.get("materials") or {}
+        self._material_meta = {key: dict(value) for key, value in materials.items()}
+        for _, key in _SETTINGS_MATERIAL_KEYS:
+            self._material_cache[key] = str((materials.get(key) or {}).get("content") or "")
+        self._load_active_material()
+
+        providers = settings_payload.get("providers") or {}
+        default_provider = providers.get("default_provider") or "openai"
+        self.query_one("#settings-default-provider", Select).value = default_provider
+        self.query_one("#settings-provider-chain", Input).value = str(providers.get("provider_chain") or "")
+
+        for _, input_id in _SETTINGS_CREDENTIAL_FIELDS:
+            self.query_one(f"#{input_id}", Input).value = ""
+
+        self.query_one("#settings-onboarding", Static).update(self._render_onboarding_summary(bootstrap_payload))
+        self.query_one("#settings-feedback", Static).update("")
+
+    def _reload_from_store(self) -> None:
+        self._apply_store_payload(load_settings(), load_bootstrap())
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "settings-material-select":
+            return
+        self._stash_active_material()
+        if isinstance(event.value, str) and event.value:
+            self._active_material_key = event.value
+        self._load_active_material()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-settings-save":
+            self._save_current_settings()
+        elif event.button.id == "btn-settings-import":
+            self._import_current_material()
+
+    def _save_current_settings(self) -> None:
+        self._stash_active_material()
+        materials_payload = {
+            key: value
+            for key, value in self._material_cache.items()
+            if str(value).strip() or bool((self._material_meta.get(key) or {}).get("exists"))
+        }
+        payload = {
+            "materials": materials_payload,
+            "providers": {
+                "default_provider": self.query_one("#settings-default-provider", Select).value,
+                "provider_chain": self.query_one("#settings-provider-chain", Input).value.strip(),
+            },
+            "credentials": {
+                key: self.query_one(f"#{input_id}", Input).value.strip()
+                for key, input_id in _SETTINGS_CREDENTIAL_FIELDS
+                if self.query_one(f"#{input_id}", Input).value.strip()
+            },
+        }
+        settings_payload = save_settings(payload)
+        self._apply_store_payload(settings_payload, load_bootstrap())
+        self.query_one("#settings-feedback", Static).update("[green]Settings saved[/]")
+
+    def _import_current_material(self) -> None:
+        source = self.query_one("#settings-import-source", Input).value.strip()
+        if not source:
+            self.query_one("#settings-feedback", Static).update("[yellow]Enter a local path or public URL[/]")
+            return
+
+        try:
+            if source.startswith(("http://", "https://")):
+                result = import_material(self._active_material_key, source_url=source)
+            else:
+                path = Path(source).expanduser()
+                result = import_material(
+                    self._active_material_key,
+                    file_name=path.name,
+                    content_bytes=path.read_bytes(),
+                )
+        except Exception as exc:  # noqa: BLE001
+            self.query_one("#settings-feedback", Static).update(f"[red]{escape(str(exc))}[/]")
+            return
+
+        self._apply_store_payload(result["settings"], result["bootstrap"])
+        self.query_one("#settings-import-source", Input).value = ""
+        label = _SETTINGS_MATERIAL_LABELS.get(self._active_material_key, self._active_material_key)
+        self.query_one("#settings-feedback", Static).update(f"[green]{label} imported[/]")
+
+    def action_switch_dash(self) -> None:
+        self.app.switch_mode("dashboard")
+
+    def action_switch_queue(self) -> None:
+        self.app.switch_mode("queue")
+
+    def action_switch_add(self) -> None:
+        self.app.switch_mode("add")
+
+    def action_switch_stats(self) -> None:
+        self.app.switch_mode("stats")
+
+
 # =========================================================================
 # Main Application
 # =========================================================================
@@ -2066,6 +2288,7 @@ class JobApp(App):
         "dashboard": DashboardScreen,
         "queue": QueueScreen,
         "add": AddJobsScreen,
+        "settings": SettingsScreen,
         "stats": StatsScreen,
     }
 
@@ -2073,6 +2296,7 @@ class JobApp(App):
         Binding("d", "switch_mode('dashboard')", "Dashboard"),
         Binding("q", "switch_mode('queue')", "Queue"),
         Binding("a", "switch_mode('add')", "Add Jobs"),
+        Binding("e", "switch_mode('settings')", "Settings"),
         Binding("s", "switch_mode('stats')", "Stats"),
         Binding("w", "toggle_workers", "Workers"),
         Binding("ctrl+r", "restart", "Restart"),
@@ -2094,9 +2318,10 @@ class JobApp(App):
         if self._worker_proc and self._worker_proc.poll() is None:
             return True
         # Also check PID file in case worker was started externally
-        if WORKER_PID_FILE.exists():
+        worker_pid_file = _worker_pid_file()
+        if worker_pid_file.exists():
             try:
-                pid = int(WORKER_PID_FILE.read_text().strip())
+                pid = int(worker_pid_file.read_text().strip())
                 os.kill(pid, 0)  # signal 0 = check if alive
                 return True
             except (ValueError, OSError):
@@ -2107,8 +2332,12 @@ class JobApp(App):
         """Start workers as a separate subprocess."""
         if self._is_worker_running():
             return
-        worker_script = str(REPO_ROOT / "scripts" / "job_worker.py")
-        cmd = ["uv", "run", "--project", str(REPO_ROOT), "python", worker_script, "--workers", "20", "--headless"]
+        ensure_action_allowed(
+            "worker_control",
+            metadata={"surface": "tui", "operation": "start"},
+            environ=os.environ,
+        )
+        cmd = python_script_command(REPO_ROOT / "scripts" / "job_worker.py", "--workers", "20", "--headless")
         self._worker_proc = subprocess.Popen(
             cmd,
             cwd=str(REPO_ROOT),
@@ -2117,10 +2346,21 @@ class JobApp(App):
             stderr=subprocess.DEVNULL,
             start_new_session=True,  # own process group for clean kill
         )
+        emit_trace(
+            "worker_control",
+            action="worker_control",
+            metadata={"surface": "tui", "operation": "start", "workers": 20},
+            environ=os.environ,
+        )
         self.notify("Workers started (subprocess)")
 
     def _stop_workers(self) -> None:
         """Stop the worker subprocess and all its children (apply.sh, etc.)."""
+        ensure_action_allowed(
+            "worker_control",
+            metadata={"surface": "tui", "operation": "stop"},
+            environ=os.environ,
+        )
         if self._worker_proc and self._worker_proc.poll() is None:
             # Kill entire process group to include child subprocesses
             try:
@@ -2135,12 +2375,18 @@ class JobApp(App):
                 except (OSError, ProcessLookupError):
                     self._worker_proc.kill()
             self._worker_proc = None
-        elif WORKER_PID_FILE.exists():
+        elif _worker_pid_file().exists():
             try:
-                pid = int(WORKER_PID_FILE.read_text().strip())
+                pid = int(_worker_pid_file().read_text().strip())
                 os.killpg(os.getpgid(pid), signal.SIGTERM)
             except (ValueError, OSError, ProcessLookupError):
                 pass
+        emit_trace(
+            "worker_control",
+            action="worker_control",
+            metadata={"surface": "tui", "operation": "stop"},
+            environ=os.environ,
+        )
         # Reset all in-progress jobs back to queued
         conn = _get_conn()
         try:
@@ -2184,6 +2430,7 @@ class JobApp(App):
 
 
 def main() -> None:
+    configure_runtime_trace(environ=os.environ, replace=True)
     while True:
         app = JobApp()
         result = app.run()
