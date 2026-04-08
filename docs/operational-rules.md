@@ -16,13 +16,28 @@ When the user asks to apply to one or more jobs (via CLI, TUI, or directly), fol
 
 ---
 
+## Approval Boundaries
+
+Use the risk tiers in [`harness-governance.md`](harness-governance.md).
+
+- `L0`: repo-local docs, tests, and verification with no external side effects
+- `L1`: local runtime settings, imported user materials, and provider credentials
+- `L2`: draft-mode automation and reversible browser work
+- `L3`: live submission, destructive operations, push, merge, or public release
+
+The pipeline defaults to `L2`. It must stop before any `L3` boundary unless
+the user explicitly approves that action.
+
+---
+
 ## Post-Fix Workflow — Mandatory After Every Fix
 
 Every fix must go through ALL of these steps, no exceptions:
 
 1. **Generalize across all boards and runtimes** — the fix must apply to every board (Greenhouse, Ashby, Lever, Gem, Dover, Workday, Phenom, iCIMS, Eightfold, BambooHR, SmartRecruiters, Workable, Comeet, Rippling, Uber, Motion Recruitment, Reducto, LinkedIn Easy Apply) and every runtime method: CLI, TUI, worker, web app, and direct LLM runs (`claude`, `gemini`, GPT). Never fix just one board or one execution path.
 2. **Update all provider instructions** — Update AGENTS.md with new patterns, then regenerate all provider copies with `uv run python scripts/sync_agent_files.py`. The generated set is `CLAUDE.md`, `GEMINI.md`, `CODEX.md`, `GPT.md`, and `.github/copilot-instructions.md`. Never edit generated files directly.
-3. **Track, commit, push, merge** — `git add`, commit with a descriptive message, `git push`. Do this after each individual fix, not batched at the end.
+3. **Track and verify before publication** — stage work intentionally, run the relevant verification commands, and keep the diff inspectable. Commit locally when the user asks or when the work needs a durable checkpoint.
+4. **Push, merge, and publish only with explicit approval** — after verification passes, confirm the diff contains no runtime data or secrets, then wait for explicit user approval before any `L3` action.
 
 ## Backlog Sweeps
 

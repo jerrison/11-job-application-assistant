@@ -83,4 +83,4 @@ On-demand guide generation via `scripts/generate_interview_prep.py` (CLI) or web
 
 ## Resume Auto-Sync
 
-`sync_if_stale()` in `sync_master_resume.py` checks `.master_resume_sync_state.json` timestamp. If >24h since last sync, fetches latest from Google Doc before asset generation. Called automatically at the start of `process_job()` phase 1-2.
+`sync_if_stale()` in `sync_master_resume.py` checks `.master_resume_sync_state.json` timestamp. If >24h since last sync, it fetches the latest configured remote source before asset generation. Called automatically at the start of `process_job()` phase 1-2.

@@ -14,6 +14,7 @@ and cover letters, autofill application forms across 19 job boards.
 - `scripts/job_tui.py` -- TUI (Textual)
 - `scripts/job_web.py` -- Web UI (FastAPI, local-only)
 - `scripts/job_worker.py` -- Background workers
+- `scripts/mac_app_launcher.py` -- Packaged macOS app launcher around the local web UI
 - `scripts/draft_web.py` -- Draft review FastAPI app (local server + optional tunnel)
 
 ## Module Map
@@ -22,6 +23,24 @@ and cover letters, autofill application forms across 19 job boards.
 - `job_db.py` -- SQLite, raw SQL, no ORM
 - `project_env.py` -- Load local, gitignored environment files
 - `output_layout.py` -- Per-role output directory organization
+
+### Runtime Settings & User Context
+- `app_paths.py` -- Resolve repo-root vs packaged runtime-home paths
+- `settings_store.py` -- Shared materials, provider, and credential settings backend
+- `web_settings_api.py` -- Shared FastAPI onboarding/settings routes for the web and packaged app surfaces
+- `material_ingest.py` -- Import and normalize text, document, PDF, HTML, and public URL source materials
+- `candidate_runtime.py` -- Derive runtime-facing display defaults from the active candidate materials
+- `runtime_policy.py` -- Policy-as-code gate for shared runtime actions
+- `runtime_trace.py` -- Redacted JSONL trace processors plus startup-time processor registration for runtime audit events
+- `runtime_entrypoints.py` -- Dispatch internal Python entrypoints safely in packaged mode
+
+**Architecture Invariant:** the packaged app, web app, CLI, and TUI must all
+resolve user materials and provider credentials through the same runtime-home
+and settings backend. No surface-specific shadow copies.
+
+**Architecture Invariant:** packaged mode must not rely on writable repo-root
+state. Worker PID files, logs, traces, browser state, credentials, and
+canonical user materials belong under the runtime home from `app_paths.py`.
 
 ### Pipeline Orchestration
 - `pipeline_orchestrator.py` -- Core job processing: resolve -> generate -> submit -> fix -> retry -> post-submit
@@ -99,6 +118,7 @@ must not inline their own classifiers.
 - `check_architecture.py` -- Validate import direction constraints
 - `check_agent_docs.py` -- Validate agent instruction files
 - `sync_agent_files.py` -- Generate CLAUDE.md, GEMINI.md, CODEX.md, GPT.md, and Copilot instructions from AGENTS.md
+- `build_mac_app.py` -- Build the macOS `.app` bundle with PyInstaller
 
 ## Agent Instruction System
 
@@ -108,11 +128,28 @@ must not inline their own classifiers.
 - `agent_preferences.md` -- behavioral defaults and learned corrections (all providers)
 - `docs/` -- progressive disclosure (detailed reference loaded on-demand)
 - `docs/exec-plans/active/` and `docs/exec-plans/completed/` -- living and archived execution plans for multi-step work
+- `docs/harness-governance.md` -- repo-level approval, durable-memory, and release-gate contract
+- `docs/registries/` -- agent, tool, and prompt registries for authority and rollback visibility
 
 **Architecture Invariant:** AGENTS.md is the only instruction file edited directly.
 All provider files are generated. agent_preferences.md is the only file for
 behavioral defaults -- never duplicate preferences into AGENTS.md or doc files.
 Enforced by sync_agent_files.py, check_agent_docs.py, and CI.
+
+## Harness & Governance
+
+- `docs/core-beliefs.md` captures the repo's golden principles for agent legibility.
+- `docs/harness-governance.md` defines durable-memory requirements, risk tiers,
+  and push/merge boundaries.
+- `docs/registries/*.md` document the owned surfaces, tool authority, and
+  prompt/control-plane lineage.
+- `docs/exec-plans/*` are the resumable state for complex in-flight work.
+- `governance/runtime-policy.json` is the runtime policy control plane for
+  action tiers, required action metadata, and explicit-approval requirements.
+
+**Architecture Invariant:** long-running work must remain resumable from repo
+artifacts alone, and `L3` actions (live submit, push, merge, publication,
+destructive operations) require explicit operator approval.
 
 ## Deliberate Absences
 
