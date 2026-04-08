@@ -1,0 +1,55 @@
+.TH JOB-ASSETS-CODEX 1 "March 2026" "job-assets-codex" "User Commands"
+.SH NAME
+job-assets-codex \- run the job-assets CLI with Codex as the default provider
+.SH SYNOPSIS
+.B job-assets-codex
+[\fICOMMAND\fR] [\fIOPTIONS\fR]
+.br
+.B job-assets-codex
+\fIJD_SOURCE\fR [\fICOMPANY\fR] [\fIROLE\fR]
+.SH DESCRIPTION
+.B job-assets-codex
+behaves like
+.BR job-assets ,
+but defaults the provider to
+.BR codex .
+Its Codex-backed runs explicitly request
+.B gpt-5.4
+with
+.B model_reasoning_effort="xhigh"
+unless
+.BR CODEX_MODEL ,
+.BR CODEX_REASONING_EFFORT ,
+.BR CODEX_APPROVAL_POLICY ,
+.BR CODEX_SANDBOX_MODE ,
+ .BR CODEX_PROFILE ,
+or
+.BR CODEX_EXTRA_ARGS
+override them.
+When
+.B CODEX_PROFILE
+is set and the explicit
+.B CODEX_*
+execution overrides are unset, the CLI defers model, reasoning, approval, and sandbox selection to that profile the same way the interactive Codex TUI does. Non-interactive Codex runs also use a temporary
+.B CODEX_HOME
+that keeps auth plus sanitized config but strips user
+.B mcp_servers
+entries so repo automation does not start unrelated desktop MCP servers.
+If the first argument is a job description URL or file path, it runs the single-job
+.B pipeline
+flow and stops at review unless
+.B --submit
+is also present.
+.SH EXAMPLES
+.TP
+.B job-assets-codex https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow with Codex.
+.TP
+.B job-assets-codex --submit https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow with Codex and submit after review.
+.TP
+.B job-assets-codex parallel --max-parallel 8
+Run the parallel batch workflow with Codex.
+.SH SEE ALSO
+.BR job-assets (1),
+.BR job-assets-claude (1)

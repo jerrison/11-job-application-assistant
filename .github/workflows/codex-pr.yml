@@ -1,0 +1,87 @@
+name: Codex PR
+
+on:
+  push:
+    branches:
+      - "codex/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  open-and-merge:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or reuse PR
+        id: pr
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = context.ref.replace("refs/heads/", "");
+            const base = "main";
+            const title = `Merge ${head} into ${base}`;
+            const body = [
+              "Automated PR for a Codex branch.",
+              "",
+              `- Source branch: \`${head}\``,
+              `- Target branch: \`${base}\``,
+            ].join("\n");
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${head}`,
+              base,
+              per_page: 1,
+            });
+
+            let pr = prs[0];
+            if (!pr) {
+              const created = await github.rest.pulls.create({
+                owner,
+                repo,
+                head,
+                base,
+                title,
+                body,
+                maintainer_can_modify: true,
+              });
+              pr = created.data;
+              core.info(`Created PR #${pr.number}`);
+            } else {
+              core.info(`Using existing PR #${pr.number}`);
+            }
+
+            core.setOutput("number", String(pr.number));
+
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CODEX_PR_MERGE_METHOD: ${{ vars.CODEX_PR_MERGE_METHOD }}
+        run: |
+          method="${CODEX_PR_MERGE_METHOD:-squash}"
+          case "${method}" in
+            merge)
+              merge_flag="--merge"
+              ;;
+            squash)
+              merge_flag="--squash"
+              ;;
+            rebase)
+              merge_flag="--rebase"
+              ;;
+            *)
+              echo "Unsupported CODEX_PR_MERGE_METHOD: ${method}" >&2
+              exit 1
+              ;;
+          esac
+          gh pr merge "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --auto "${merge_flag}" --delete-branch=false

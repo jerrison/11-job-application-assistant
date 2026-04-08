@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Applications</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav id="nav">
+    <div class="nav-brand">JobApps</div>
+    <button id="hamburger" class="hamburger" aria-label="Toggle menu">&#9776;</button>
+    <div class="nav-links" id="nav-links">
+      <a href="#queue" class="nav-link active">Queue</a>
+      <a href="#add" class="nav-link">Add Jobs</a>
+      <a href="#discover" class="nav-link">Discover</a>
+      <a href="#dashboard" class="nav-link">Dashboard</a>
+      <a href="#stats" class="nav-link">Stats</a>
+      <a href="#settings" class="nav-link">Settings</a>
+    </div>
+    <button id="restart-btn" class="restart-btn" onclick="if(confirm('Restart web server? This will reload the page but workers keep running.'))restartServer()" title="Restart web server — reloads page, workers unaffected">Restart Web</button>
+    <button class="kill-btn" onclick="if(confirm('Kill everything? Web server and all workers will stop.'))killServer()" title="Kill web server + workers">Kill All</button>
+    <button id="worker-btn" class="worker-btn worker-off" onclick="toggleWorker()">
+      Workers: <span id="worker-status-text">OFF</span>
+    </button>
+  </nav>
+
+
+  <div id="worker-panel" class="worker-panel" style="display:none">
+    <div class="worker-panel-header">
+      <h2>Workers</h2>
+      <div class="worker-bulk-controls">
+        <button class="btn btn-sm btn-success" onclick="startAllWorkers()">Start All</button>
+        <button class="btn btn-sm btn-danger-outline" onclick="stopAllWorkers()">Stop All</button>
+        <button class="btn btn-sm btn-outline" onclick="restartAllWorkers()">Restart All</button>
+        <span class="worker-count-label">Workers: <span id="worker-count-display">0</span></span>
+        <div class="sort-control-group worker-sort-controls">
+          <label class="sort-control-label" for="worker-sort-field">Sort</label>
+          <select id="worker-sort-field" class="board-filter" onchange="setWorkerSortField(this.value)">
+            <option value="status">Status</option>
+            <option value="worker_id">Worker #</option>
+            <option value="job_id">Job ID</option>
+            <option value="company">Company</option>
+            <option value="role_title">Role</option>
+            <option value="phase">Phase</option>
+            <option value="progress">Progress</option>
+            <option value="elapsed">Elapsed</option>
+            <option value="board">Board</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline sort-dir-btn" id="worker-sort-dir-btn" onclick="toggleWorkerSortDir()">Ascending</button>
+        </div>
+      </div>
+      <button class="worker-panel-toggle" id="worker-panel-toggle" onclick="toggleWorkerPanel()">&#9660;</button>
+    </div>
+    <div class="worker-panel-body" id="worker-panel-body">
+      <table class="worker-table" id="worker-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort-field="worker_id" onclick="handleWorkerHeaderSort('worker_id')"># <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="status" onclick="handleWorkerHeaderSort('status')">Status <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="company" onclick="handleWorkerHeaderSort('company')">Job <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="phase" onclick="handleWorkerHeaderSort('phase')">Phase <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="progress" onclick="handleWorkerHeaderSort('progress')">Progress <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="elapsed" onclick="handleWorkerHeaderSort('elapsed')">Elapsed <span class="sort-icon" aria-hidden="true"></span></th>
+            <th class="sortable" data-sort-field="board" onclick="handleWorkerHeaderSort('board')">Board <span class="sort-icon" aria-hidden="true"></span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="worker-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <main id="main">
+
+    <!-- ── Queue View ──────────────────────────────────────────── -->
+    <section id="view-queue" style="display:none">
+      <div class="section-header">
+        <h1>Job Queue</h1>
+      </div>
+
+      <!-- Status badge bar -->
+      <div class="badge-bar" id="badge-bar">
+        <button class="badge-pill all-pill active" data-status="" onclick="setStatusFilter('')">
+          All <span class="badge-count" id="badge-count-all">0</span>
+        </button>
+        <button class="badge-pill" data-status="queued" onclick="setStatusFilter('queued')">
+          Queued <span class="badge-count" id="badge-count-queued">0</span>
+        </button>
+        <button class="badge-pill" data-status="processing" onclick="setStatusFilter('processing')">
+          Processing <span class="badge-count" id="badge-count-processing">0</span>
+        </button>
+        <button class="badge-pill" data-status="draft" onclick="setStatusFilter('draft')">
+          Draft <span class="badge-count" id="badge-count-draft">0</span>
+        </button>
+        <button class="badge-pill" data-status="submitted" onclick="setStatusFilter('submitted')">
+          Submitted <span class="badge-count" id="badge-count-submitted">0</span>
+        </button>
+        <button class="badge-pill" data-status="stopped" onclick="setStatusFilter('stopped')">
+          Stopped <span class="badge-count" id="badge-count-stopped">0</span>
+        </button>
+        <button class="badge-pill" data-status="archived" onclick="setStatusFilter('archived')">
+          Archived <span class="badge-count" id="badge-count-archived">0</span>
+        </button>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="search-input-shell">
+          <input type="text" id="search-input" class="search-input" placeholder="Search company, role, URL..." oninput="debounceSearch()">
+          <button type="button" id="search-clear-btn" class="search-clear-btn" aria-label="Clear search" title="Clear search" onclick="clearSearchInput()" hidden>&times;</button>
+        </div>
+        <select id="board-filter" class="board-filter" onchange="setBoardFilter()">
+          <option value="">All boards</option>
+          <option value="greenhouse">Greenhouse</option>
+          <option value="ashby">Ashby</option>
+          <option value="lever">Lever</option>
+          <option value="workday">Workday</option>
+          <option value="dover">Dover</option>
+          <option value="gem">Gem</option>
+          <option value="phenom">Phenom</option>
+          <option value="icims">iCIMS</option>
+        </select>
+        <div class="sort-control-group">
+          <label class="sort-control-label" for="queue-sort-field">Sort</label>
+          <select id="queue-sort-field" class="board-filter" onchange="setQueueSortField(this.value)">
+            <option value="updated_at">Updated</option>
+            <option value="status_entered_at">Status Entered</option>
+            <option value="id">Job ID</option>
+            <option value="status">Status</option>
+            <option value="company">Company</option>
+            <option value="role_title">Role</option>
+            <option value="board">Board</option>
+            <option value="progress">Progress</option>
+            <option value="confidence">Confidence</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline sort-dir-btn" id="queue-sort-dir-btn" onclick="toggleQueueSortDir()">Descending</button>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="runDedup()" id="dedup-btn" title="Find duplicate jobs by matching job descriptions">Find Duplicates</button>
+        <button class="btn btn-sm btn-outline" onclick="importSavedPortalFromQueue('linkedin')" id="linkedin-import-btn" title="Import saved jobs from LinkedIn">Import LinkedIn Saved</button>
+        <button class="btn btn-sm btn-outline" onclick="importSavedPortalFromQueue('trueup')" id="trueup-import-btn" title="Import saved jobs from TrueUp">Import TrueUp My Jobs</button>
+        <button class="btn btn-sm btn-outline" onclick="importSavedPortalFromQueue('jackandjill')" id="jackandjill-import-btn" title="Import opportunities from Jack & Jill">Import Jack & Jill Opportunities</button>
+        <div class="bulk-actions" id="bulk-actions" style="display:none">
+          <span class="selected-count" id="selected-count">0 selected</span>
+          <button class="btn btn-sm btn-success" id="bulk-approve-btn" onclick="bulkApprove()">Approve + Submit</button>
+          <button class="btn btn-sm btn-outline" id="bulk-restart-draft-btn" onclick="bulkRestart(false)">Restart → Draft</button>
+          <button class="btn btn-sm btn-outline" id="bulk-restart-submit-btn" onclick="bulkRestart(true)">Restart → Submit</button>
+          <button class="btn btn-sm btn-outline" onclick="bulkStop()">Stop</button>
+          <button class="btn btn-sm btn-outline" onclick="bulkArchive()">Archive</button>
+          <button class="btn btn-sm btn-danger-outline" onclick="bulkDelete()">Delete</button>
+        </div>
+      </div>
+
+      <!-- Job table -->
+      <div class="table-wrapper">
+        <table class="job-table" id="job-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+              <th class="col-job sortable" data-sort-field="company" onclick="handleQueueHeaderSort('company')">Job <span class="sort-icon" aria-hidden="true"></span></th>
+              <th class="col-entered sortable" data-sort-field="status_entered_at" onclick="handleQueueHeaderSort('status_entered_at')">Entered <span class="sort-icon" aria-hidden="true"></span></th>
+              <th class="col-confidence sortable" data-sort-field="confidence" onclick="handleQueueHeaderSort('confidence')">Draft Confidence <span class="sort-icon" aria-hidden="true"></span></th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="job-tbody">
+            <tr class="empty-row"><td colspan="5">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="queue-pagination">
+        <button class="btn btn-sm btn-outline" id="queue-prev-btn" onclick="prevQueuePage()">Previous</button>
+        <span class="queue-page-info" id="queue-page-info">0 jobs</span>
+        <button class="btn btn-sm btn-outline" id="queue-next-btn" onclick="nextQueuePage()">Next</button>
+      </div>
+    </section>
+
+    <!-- ── Job Detail View ────────────────────────────────────── -->
+    <section id="view-job" style="display:none">
+      <div class="job-detail-dock" id="job-detail-dock">
+        <div class="dock-row dock-row-primary">
+          <div class="dock-summary">
+            <a href="#queue" class="back-link dock-back-link">&larr; Back to Queue</a>
+            <div class="job-summary" id="job-header">
+              <div class="job-title" id="job-title">Loading...</div>
+              <div class="job-meta" id="job-meta"></div>
+            </div>
+          </div>
+          <div class="dock-controls">
+            <div class="job-status-row" id="job-status-row">
+              <span class="status-badge" id="job-status-badge"></span>
+              <span class="prev-submitted-badge" id="prev-submitted-indicator" style="display:none"></span>
+              <span class="prev-submitted-badge" id="submission-lock-indicator" style="display:none"></span>
+            </div>
+            <div class="dock-action-shell scroll-fade-shell" id="job-actions-shell">
+              <div class="action-row" id="action-row"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dock-row dock-row-tabs">
+          <div class="dock-tab-shell scroll-fade-shell" id="job-tabs-shell">
+            <div class="tab-bar" id="tab-bar">
+              <button class="tab-btn active" data-tab="answers" onclick="switchTab('answers', null, true)">Answers</button>
+              <button class="tab-btn" data-tab="resume" onclick="switchTab('resume', null, true)">Resume</button>
+              <button class="tab-btn" data-tab="cover-letter" onclick="switchTab('cover-letter', null, true)">Cover Letter</button>
+              <button class="tab-btn" data-tab="screenshot" onclick="switchTab('screenshot', null, true)">Screenshot</button>
+              <button class="tab-btn" data-tab="confirmation" onclick="switchTab('confirmation', null, true)">Confirmation</button>
+              <button class="tab-btn" data-tab="logs" onclick="switchTab('logs', null, true)">Logs</button>
+              <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline', null, true)">Timeline</button>
+              <button class="tab-btn" data-tab="interview-prep" onclick="switchTab('interview-prep', null, true)">Interview Prep</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="job-detail-helper-stack" id="job-detail-helper-stack">
+        <!-- Board URL input (shown when needs_board_url) -->
+        <div class="board-url-bar" id="board-url-bar" style="display:none">
+          <label class="board-url-label">Board URL required:</label>
+          <input type="text" id="board-url-input" class="board-url-input" placeholder="https://...">
+          <button class="btn btn-primary" onclick="submitBoardUrl()">Set URL</button>
+        </div>
+
+        <!-- Error banner -->
+        <div class="error-banner" id="error-banner" style="display:none">
+          <span class="error-icon">&#9888;</span>
+          <span id="error-message-text"></span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-wrap" id="progress-wrap" style="display:none">
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="progress-bar-inner"></div>
+          </div>
+          <div class="progress-label" id="progress-label"></div>
+        </div>
+
+        <!-- Shared answer refresh proof -->
+        <div class="answer-refresh-region" id="answer-refresh-proof"></div>
+      </div>
+
+      <!-- Tab content -->
+      <div class="tab-content" id="tab-answers">
+        <div class="loading-msg">Select a job to load answers...</div>
+      </div>
+      <div class="tab-content" id="tab-resume" style="display:none">
+        <div class="loading-msg">Loading resume...</div>
+      </div>
+      <div class="tab-content" id="tab-cover-letter" style="display:none">
+        <div class="loading-msg">Loading cover letter...</div>
+      </div>
+      <div class="tab-content" id="tab-screenshot" style="display:none">
+        <div class="loading-msg">Loading screenshot...</div>
+      </div>
+
+      <!-- Confirmation tab -->
+      <div class="tab-content" id="tab-confirmation" style="display:none">
+        <div class="loading-msg">Loading confirmation...</div>
+      </div>
+
+      <!-- Logs tab -->
+      <div class="tab-content" id="tab-logs" style="display:none">
+        <div class="loading-msg">Loading logs...</div>
+      </div>
+
+      <!-- Timeline tab -->
+      <div class="tab-content" id="tab-timeline" style="display:none">
+        <div id="timeline-content"></div>
+      </div>
+
+      <!-- Interview Prep tab -->
+      <div class="tab-content" id="tab-interview-prep" style="display:none">
+        <div id="interview-prep-content">
+          <div class="loading-msg">Loading interview prep...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Add Jobs View ──────────────────────────────────────── -->
+    <section id="view-add" style="display:none">
+      <div class="section-header">
+        <h1>Add Jobs</h1>
+      </div>
+      <div class="add-form-card">
+        <div class="form-group">
+          <label class="form-label">Job URLs (one per line)</label>
+          <textarea id="urls-input" class="urls-textarea" placeholder="https://boards.greenhouse.io/company/jobs/123&#10;https://jobs.lever.co/company/abc&#10;..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Provider</label>
+            <select id="provider-select" class="form-select">
+              <option value="">Auto</option>
+              <option value="claude">Claude</option>
+              <option value="gemini">Gemini</option>
+              <option value="gpt">GPT</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="priority-select" class="form-select">
+              <option value="0">Normal (0)</option>
+              <option value="5">High (5)</option>
+              <option value="10">Urgent (10)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="add-submit-btn" onclick="submitJobs()">Add Jobs</button>
+        <div class="form-group" style="margin-top:14px">
+          <label class="form-label">Saved Portals</label>
+          <div class="form-row">
+            <button class="btn btn-outline" id="add-linkedin-import-btn" onclick="importSavedPortalFromAddView('linkedin')">Import LinkedIn Saved</button>
+            <button class="btn btn-outline" id="add-trueup-import-btn" onclick="importSavedPortalFromAddView('trueup')">Import TrueUp My Jobs</button>
+            <button class="btn btn-outline" id="add-jackandjill-import-btn" onclick="importSavedPortalFromAddView('jackandjill')">Import Jack & Jill Opportunities</button>
+          </div>
+        </div>
+        <div class="add-feedback" id="add-feedback" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- ── Dashboard View ─────────────────────────────────────── -->
+    <section id="view-dashboard" style="display:none">
+      <div class="section-header">
+        <h1>Dashboard</h1>
+      </div>
+      <div class="stats-grid" id="dashboard-stats-grid">
+        <!-- populated by JS -->
+      </div>
+      <div class="dashboard-cols">
+        <div class="dashboard-col">
+          <h2 class="col-title">Recent Activity</h2>
+          <div class="activity-feed" id="activity-feed">
+            <div class="loading-msg">Loading...</div>
+          </div>
+        </div>
+        <div class="dashboard-col">
+          <h2 class="col-title">Board Breakdown</h2>
+          <div class="board-breakdown" id="board-breakdown">
+            <div class="loading-msg">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Stats View ──────────────────────────────────────────── -->
+    <section id="view-stats" style="display:none">
+      <div class="section-header">
+        <h1>Statistics</h1>
+      </div>
+
+      <!-- Processed counts summary -->
+      <div class="stats-card">
+        <h2 class="stats-card-title">Jobs Processed</h2>
+        <div class="processed-grid" id="processed-grid">
+          <div class="loading-msg">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Metrics table -->
+      <div class="stats-card">
+        <h2 class="stats-card-title">Per-Job Metrics</h2>
+        <div class="table-wrapper">
+          <table class="metrics-table" id="metrics-table">
+            <thead>
+              <tr>
+                <th onclick="sortMetrics('company')" class="sortable">Company</th>
+                <th onclick="sortMetrics('role_title')" class="sortable">Role</th>
+                <th onclick="sortMetrics('total_cost_usd')" class="sortable">Cost ($)</th>
+                <th onclick="sortMetrics('total_tokens')" class="sortable">Tokens</th>
+                <th onclick="sortMetrics('fix_attempts')" class="sortable">Fixes</th>
+                <th onclick="sortMetrics('manual_interventions')" class="sortable">Manual</th>
+                <th onclick="sortMetrics('total_duration_seconds')" class="sortable">Duration</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-tbody">
+              <tr><td colspan="7">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Phase breakdown -->
+      <div class="stats-card">
+        <h2 class="stats-card-title">Avg Phase Durations</h2>
+        <div class="phase-chart" id="phase-chart">
+          <div class="loading-msg">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Board error rates -->
+      <div class="stats-card">
+        <h2 class="stats-card-title">Board Error Rates</h2>
+        <div class="board-error-chart" id="board-error-chart">
+          <div class="loading-msg">Loading...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── URLs View ──────────────────────────────────────────────── -->
+    <section id="view-urls" style="display:none">
+      <div class="section-header">
+        <h1>Job URLs</h1>
+      </div>
+      <div class="urls-panel">
+        <div class="urls-filters">
+          <div class="urls-filter-group">
+            <div class="urls-filter-label">Status</div>
+            <div class="urls-chips" id="urls-status-chips">
+              <label class="urls-chip"><input type="checkbox" value="draft" onchange="renderUrlsView()" checked> Draft</label>
+              <label class="urls-chip"><input type="checkbox" value="submitted" onchange="renderUrlsView()" checked> Submitted</label>
+              <label class="urls-chip"><input type="checkbox" value="processing" onchange="renderUrlsView()"> Processing</label>
+              <label class="urls-chip"><input type="checkbox" value="queued" onchange="renderUrlsView()"> Queued</label>
+              <label class="urls-chip"><input type="checkbox" value="stopped" onchange="renderUrlsView()"> Stopped</label>
+              <label class="urls-chip"><input type="checkbox" value="archived" onchange="renderUrlsView()"> Archived</label>
+            </div>
+          </div>
+          <div class="urls-filter-group">
+            <div class="urls-filter-label">Board</div>
+            <div class="urls-chips" id="urls-board-chips"></div>
+          </div>
+          <div class="urls-filter-group">
+            <div class="urls-filter-label">Search</div>
+            <input type="text" class="search-input" id="urls-search" placeholder="Filter by company, role..." oninput="renderUrlsView()" style="max-width:300px">
+          </div>
+        </div>
+        <div class="urls-toolbar">
+          <select class="settings-select" id="urls-type" onchange="renderUrlsView()">
+            <option value="source">Source URLs (LinkedIn)</option>
+            <option value="board">Board URLs</option>
+            <option value="both">Both</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="copyAllUrls()">Copy All</button>
+          <span class="urls-count" id="urls-count"></span>
+        </div>
+        <textarea class="urls-output" id="urls-output" readonly spellcheck="false"></textarea>
+      </div>
+    </section>
+
+    <!-- ── Discover View ─────────────────────────────────────────── -->
+    <section id="view-discover" style="display:none">
+      <div class="section-header">
+        <h1>Discover Jobs</h1>
+      </div>
+
+      <!-- Search form -->
+      <div class="discover-search-form">
+        <input type="text" id="discover-keywords" class="search-input" placeholder="Keywords (e.g. Product Manager AI)" style="flex:2">
+        <input type="text" id="discover-location" class="search-input" placeholder="Location" value="San Francisco, CA" style="flex:1">
+        <select id="discover-sources" class="board-filter" multiple size="3" title="Hold Cmd/Ctrl to multi-select">
+          <option value="linkedin" selected>LinkedIn</option>
+          <option value="indeed" selected>Indeed</option>
+          <option value="glassdoor" selected>Glassdoor</option>
+        </select>
+        <button class="btn btn-primary" id="discover-search-btn" onclick="discoverSearch()">Search</button>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="discover-filter-bar" id="discover-filter-bar">
+        <button class="badge-pill all-pill active" data-dstatus="" onclick="setDiscoverFilter('')">
+          All <span id="dcount-all">0</span>
+        </button>
+        <button class="badge-pill" data-dstatus="new" onclick="setDiscoverFilter('new')">
+          New <span id="dcount-new">0</span>
+        </button>
+        <button class="badge-pill" data-dstatus="scored" onclick="setDiscoverFilter('scored')">
+          Scored <span id="dcount-scored">0</span>
+        </button>
+        <button class="badge-pill" data-dstatus="promoted" onclick="setDiscoverFilter('promoted')">
+          Drafted <span id="dcount-promoted">0</span>
+        </button>
+        <button class="badge-pill" data-dstatus="skipped" onclick="setDiscoverFilter('skipped')">
+          Skipped <span id="dcount-skipped">0</span>
+        </button>
+        <button class="btn btn-sm btn-outline" id="discover-score-all-btn" onclick="discoverScoreAll()" style="margin-left:auto">Score Unscored</button>
+        <input type="text" id="discover-search-filter" class="search-input" placeholder="Filter results..." style="max-width:220px" oninput="discoverSearchFilter()">
+      </div>
+
+      <!-- Bulk actions bar -->
+      <div class="discover-bulk-bar" id="discover-bulk-bar" style="display:none">
+        <span id="discover-selected-count">0 selected</span>
+        <button class="btn btn-sm btn-success" onclick="discoverBulkDraft()">Draft Selected</button>
+        <button class="btn btn-sm btn-outline" onclick="discoverBulkSkip()">Skip Selected</button>
+      </div>
+
+      <!-- Results table -->
+      <div class="table-wrapper">
+        <table class="job-table" id="discover-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="discover-select-all" onchange="discoverToggleSelectAll()"></th>
+              <th>Score</th>
+              <th>Company</th>
+              <th>Role</th>
+              <th>Location</th>
+              <th>Salary</th>
+              <th>Source</th>
+              <th>Posted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="discover-tbody">
+            <tr class="empty-row"><td colspan="9">Search for jobs to get started.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Settings View ─────────────────────────────────────────── -->
+    <section id="view-settings" style="display:none">
+      <div class="section-header">
+        <h1>Settings</h1>
+      </div>
+
+      <div class="settings-panel">
+        <div class="settings-onboarding-card">
+          <div class="settings-onboarding-copy">
+            <div class="settings-title">Onboarding</div>
+            <div class="settings-desc" id="settings-onboarding-status">Checking your local setup.</div>
+            <div class="settings-onboarding-checklist">
+              <div class="settings-check-item" id="settings-onboarding-master-resume">Master resume required.</div>
+              <div class="settings-check-item" id="settings-onboarding-provider-credentials">Add at least one provider credential.</div>
+              <div class="settings-check-item" id="settings-onboarding-application-profile">Application profile recommended.</div>
+              <div class="settings-check-item" id="settings-onboarding-work-stories">Work stories optional.</div>
+              <div class="settings-check-item" id="settings-onboarding-candidate-context">Candidate context optional.</div>
+            </div>
+          </div>
+          <div class="settings-onboarding-actions">
+            <button class="btn btn-primary" id="settings-onboarding-continue-btn" onclick="continueToQueueFromSettings()" disabled>Continue to Queue</button>
+          </div>
+        </div>
+
+        <h2 class="settings-group-title">Interface and theme</h2>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">Interface theme</div>
+            <div class="settings-desc">Select your interface color scheme</div>
+          </div>
+          <select class="settings-select" id="setting-theme" onchange="applyTheme(this.value)">
+            <option value="light">Light</option>
+            <option value="pure-light">Pure Light</option>
+            <option value="dark">Dark</option>
+            <option value="magic-blue">Magic Blue</option>
+            <option value="classic-dark">Classic Dark</option>
+            <option value="midnight">Midnight</option>
+            <option value="nord">Nord</option>
+            <option value="catppuccin">Catppuccin</option>
+          </select>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">Font size</div>
+            <div class="settings-desc">Adjust the size of text across the app</div>
+          </div>
+          <select class="settings-select" id="setting-font-size" onchange="applyFontSize(this.value)">
+            <option value="small">Small</option>
+            <option value="default" selected>Default</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">Compact mode</div>
+            <div class="settings-desc">Reduce padding and spacing in the queue table</div>
+          </div>
+          <label class="settings-toggle">
+            <input type="checkbox" id="setting-compact" onchange="applyCompact(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <h2 class="settings-group-title">Pipeline Defaults</h2>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">Default provider</div>
+            <div class="settings-desc">Primary provider for resume tailoring, answers, and interview prep</div>
+          </div>
+          <select class="settings-select" id="settings-default-provider">
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+            <option value="gemini-flash">Gemini Flash</option>
+            <option value="codex">Codex</option>
+            <option value="claude">Claude</option>
+          </select>
+        </div>
+
+        <div class="settings-row settings-row-stack">
+          <div class="settings-label">
+            <div class="settings-title">Automation fallback chain</div>
+            <div class="settings-desc">Comma-separated provider order for retries. Automation remains restricted to OpenAI and Gemini.</div>
+          </div>
+          <input class="settings-input" id="settings-provider-chain" type="text" placeholder="openai,gemini">
+        </div>
+
+        <div class="settings-grid">
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-openai-model">OpenAI model</label>
+            <input class="settings-input" id="settings-openai-model" type="text" placeholder="gpt-5.4">
+          </div>
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-gemini-model">Gemini model</label>
+            <input class="settings-input" id="settings-gemini-model" type="text" placeholder="gemini-3-flash-preview">
+          </div>
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-gemini-flash-model">Gemini Flash model</label>
+            <input class="settings-input" id="settings-gemini-flash-model" type="text" placeholder="gemini-3-flash-preview">
+          </div>
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-codex-model">Codex model</label>
+            <input class="settings-input" id="settings-codex-model" type="text" placeholder="gpt-5.4">
+          </div>
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-claude-model">Claude model</label>
+            <input class="settings-input" id="settings-claude-model" type="text" placeholder="claude-sonnet-4-6">
+          </div>
+          <div class="settings-field">
+            <label class="settings-mini-label" for="settings-steel-base-url">Steel base URL</label>
+            <input class="settings-input" id="settings-steel-base-url" type="text" placeholder="https://api.steel.dev">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">Use local Steel</div>
+            <div class="settings-desc">Enable self-hosted Steel mode and skip cloud API key requirements</div>
+          </div>
+          <label class="settings-toggle">
+            <input type="checkbox" id="settings-steel-local">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <h2 class="settings-group-title">Source Materials</h2>
+
+        <div class="settings-editor-card">
+          <div class="settings-editor-header">
+            <div>
+              <div class="settings-title">Master resume</div>
+              <div class="settings-desc">Canonical bullet inventory and profile facts used across drafting and autofill.</div>
+            </div>
+            <div class="settings-path" id="settings-master-resume-path"></div>
+          </div>
+          <div class="settings-import-bar">
+            <input class="settings-input" id="settings-master-resume-import-url" type="url" placeholder="Paste a public resume URL">
+            <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('master_resume')">Import URL</button>
+            <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-master-resume-import-file">Upload file</label>
+            <input class="settings-upload-input" id="settings-master-resume-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('master_resume', this)">
+          </div>
+          <textarea class="settings-editor" id="settings-master-resume" spellcheck="false"></textarea>
+        </div>
+
+        <div class="settings-editor-card">
+          <div class="settings-editor-header">
+            <div>
+              <div class="settings-title">Work stories</div>
+              <div class="settings-desc">Project narratives and evidence used to enrich cover letters and interview prep.</div>
+            </div>
+            <div class="settings-path" id="settings-work-stories-path"></div>
+          </div>
+          <div class="settings-import-bar">
+            <input class="settings-input" id="settings-work-stories-import-url" type="url" placeholder="Paste a public work stories URL">
+            <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('work_stories')">Import URL</button>
+            <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-work-stories-import-file">Upload file</label>
+            <input class="settings-upload-input" id="settings-work-stories-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('work_stories', this)">
+          </div>
+          <textarea class="settings-editor" id="settings-work-stories" spellcheck="false"></textarea>
+        </div>
+
+        <div class="settings-editor-card">
+          <div class="settings-editor-header">
+            <div>
+              <div class="settings-title">Candidate context</div>
+              <div class="settings-desc">Voice, motivations, and positioning context used when tailoring applications.</div>
+            </div>
+            <div class="settings-path" id="settings-candidate-context-path"></div>
+          </div>
+          <div class="settings-import-bar">
+            <input class="settings-input" id="settings-candidate-context-import-url" type="url" placeholder="Paste a public candidate context URL">
+            <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('candidate_context')">Import URL</button>
+            <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-candidate-context-import-file">Upload file</label>
+            <input class="settings-upload-input" id="settings-candidate-context-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('candidate_context', this)">
+          </div>
+          <textarea class="settings-editor" id="settings-candidate-context" spellcheck="false"></textarea>
+        </div>
+
+        <div class="settings-editor-card">
+          <div class="settings-editor-header">
+            <div>
+              <div class="settings-title">Application profile</div>
+              <div class="settings-desc">Form defaults such as links, work authorization, and contact info.</div>
+            </div>
+            <div class="settings-path" id="settings-application-profile-path"></div>
+          </div>
+          <div class="settings-import-bar">
+            <input class="settings-input" id="settings-application-profile-import-url" type="url" placeholder="Paste a public application profile URL">
+            <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('application_profile')">Import URL</button>
+            <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-application-profile-import-file">Upload file</label>
+            <input class="settings-upload-input" id="settings-application-profile-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('application_profile', this)">
+            <button type="button" class="btn btn-sm btn-outline" onclick="fillStarterApplicationProfile()">Starter template</button>
+          </div>
+          <textarea class="settings-editor" id="settings-application-profile" spellcheck="false"></textarea>
+        </div>
+
+        <h2 class="settings-group-title">Provider Credentials</h2>
+
+        <div class="settings-secret-card">
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">OpenAI API key</div>
+              <div class="settings-desc" id="settings-openai-api-key-status">Not configured</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-openai-api-key" type="password" placeholder="Leave blank to keep current key" oninput="clearCredentialPending('openai_api_key')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('openai_api_key')">Clear</button>
+          </div>
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">OpenAI key pool</div>
+              <div class="settings-desc" id="settings-openai-api-keys-status">Optional comma-separated pool</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-openai-api-keys" type="password" placeholder="sk-key-1,sk-key-2" oninput="clearCredentialPending('openai_api_keys')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('openai_api_keys')">Clear</button>
+          </div>
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">Gemini API key</div>
+              <div class="settings-desc" id="settings-gemini-api-key-status">Not configured</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-gemini-api-key" type="password" placeholder="Leave blank to keep current key" oninput="clearCredentialPending('gemini_api_key')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('gemini_api_key')">Clear</button>
+          </div>
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">Codex API key</div>
+              <div class="settings-desc" id="settings-codex-api-key-status">Not configured</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-codex-api-key" type="password" placeholder="Leave blank to keep current key" oninput="clearCredentialPending('codex_api_key')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('codex_api_key')">Clear</button>
+          </div>
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">Anthropic API key</div>
+              <div class="settings-desc" id="settings-anthropic-api-key-status">Not configured</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-anthropic-api-key" type="password" placeholder="Leave blank to keep current key" oninput="clearCredentialPending('anthropic_api_key')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('anthropic_api_key')">Clear</button>
+          </div>
+          <div class="settings-secret-row">
+            <div class="settings-label">
+              <div class="settings-title">Steel API key</div>
+              <div class="settings-desc" id="settings-steel-api-key-status">Not configured</div>
+            </div>
+            <input class="settings-input settings-secret-input" id="settings-steel-api-key" type="password" placeholder="Leave blank to keep current key" oninput="clearCredentialPending('steel_api_key')">
+            <button type="button" class="btn btn-sm btn-outline" onclick="markCredentialForClear('steel_api_key')">Clear</button>
+          </div>
+        </div>
+
+        <div class="settings-savebar">
+          <div class="settings-status" id="settings-status">Backend settings load when this page opens.</div>
+          <button class="btn btn-primary" id="settings-save-btn" onclick="saveServerSettings()">Save Settings</button>
+        </div>
+
+        <h2 class="settings-group-title">Keyboard shortcuts</h2>
+
+        <p style="font-size:13px;color:var(--base0);margin-bottom:12px">Press <kbd>?</kbd> anywhere for the full contextual shortcut overlay.</p>
+        <div class="shortcuts-grid">
+          <div class="shortcut-row"><kbd>?</kbd><span>Shortcut help overlay</span></div>
+          <div class="shortcut-row"><kbd>&#8984;K</kbd><span>Command palette</span></div>
+          <div class="shortcut-row"><kbd>C</kbd><span>Add jobs modal</span></div>
+          <div class="shortcut-row"><kbd>Esc</kbd><span>Close modal/overlay</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>Q</kbd><span>Go to Queue</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>A</kbd><span>Go to Add Jobs</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>I</kbd><span>Go to Discover</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>D</kbd><span>Go to Dashboard</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>S</kbd><span>Go to Stats</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>E</kbd><span>Go to Settings</span></div>
+          <div class="shortcut-row"><kbd>G</kbd> <kbd>U</kbd><span>Go to URLs</span></div>
+          <div class="shortcut-row"><kbd>J</kbd> / <kbd>K</kbd><span>Move up/down in queue</span></div>
+          <div class="shortcut-row"><kbd>Enter</kbd><span>Open selected job</span></div>
+          <div class="shortcut-row"><kbd>&#8679;Enter</kbd><span>Open selected job as modal</span></div>
+          <div class="shortcut-row"><kbd>X</kbd><span>Toggle selection</span></div>
+          <div class="shortcut-row"><kbd>/</kbd><span>Focus search</span></div>
+          <div class="shortcut-row"><kbd>E</kbd><span>Cycle status filter (queue)</span></div>
+          <div class="shortcut-row"><kbd>O</kbd><span>Cycle sort column (queue)</span></div>
+          <div class="shortcut-row"><kbd>1</kbd>-<kbd>8</kbd><span>Switch tabs (job detail)</span></div>
+          <div class="shortcut-row"><kbd>A</kbd><span>Approve + Submit (draft)</span></div>
+          <div class="shortcut-row"><kbd>R</kbd><span>Restart as draft</span></div>
+          <div class="shortcut-row"><kbd>&#8679;R</kbd><span>Restart and submit</span></div>
+          <div class="shortcut-row"><kbd>S</kbd><span>Stop job</span></div>
+          <div class="shortcut-row"><kbd>D</kbd><span>Delete job</span></div>
+          <div class="shortcut-row"><kbd>E</kbd><span>Archive/Unarchive (job detail)</span></div>
+          <div class="shortcut-row"><kbd>Y</kbd><span>Regenerate Answers</span></div>
+          <div class="shortcut-row"><kbd>U</kbd><span>Regenerate Resume</span></div>
+          <div class="shortcut-row"><kbd>I</kbd><span>Regenerate Cover Letter</span></div>
+          <div class="shortcut-row"><kbd>P</kbd><span>Interview Prep</span></div>
+          <div class="shortcut-row"><kbd>B</kbd><span>Open Job Board</span></div>
+          <div class="shortcut-row"><kbd>F</kbd><span>Focus Browser (captcha)</span></div>
+          <div class="shortcut-row"><kbd>N</kbd> / <kbd>]</kbd><span>Next job</span></div>
+          <div class="shortcut-row"><kbd>&#8679;N</kbd> / <kbd>[</kbd><span>Previous job</span></div>
+          <div class="shortcut-row"><kbd>&#9003;</kbd><span>Back to queue</span></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Changes bar (sticky bottom) -->
+  <div class="changes-bar" id="changes-bar" style="display:none">
+    <span class="changes-count" id="changes-count">0 changes</span>
+    <div class="changes-actions">
+      <button class="btn btn-outline btn-sm" onclick="discardAllChanges()">Discard All</button>
+      <button class="btn btn-primary btn-sm" onclick="showReviewModal()">Review Changes</button>
+    </div>
+  </div>
+
+  <!-- Review modal -->
+  <div class="modal-backdrop" id="job-detail-modal-backdrop" style="display:none" onclick="closeJobDetailModal()"></div>
+  <div class="modal-backdrop" id="modal-backdrop" style="display:none" onclick="closeModal()"></div>
+  <div class="modal" id="review-modal" style="display:none">
+    <div class="modal-header">
+      <h2>Review Changes</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmChanges()">Save Changes</button>
+    </div>
+  </div>
+
+  <!-- Add Jobs modal (C key) -->
+  <div class="modal-backdrop" id="addjob-backdrop" style="display:none" onclick="closeAddJobModal()"></div>
+  <div class="modal" id="addjob-modal" style="display:none">
+    <div class="modal-header">
+      <h2>Add Jobs</h2>
+      <button class="modal-close" onclick="closeAddJobModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="addjob-body">
+      <div id="addjob-rows"></div>
+    </div>
+    <div class="modal-footer">
+      <span class="addjob-hint"><kbd>Shift+Enter</kbd> add row &middot; <kbd>Enter</kbd> submit &middot; <kbd>Esc</kbd> close</span>
+      <button class="btn btn-primary" id="addjob-submit-btn" onclick="submitAddJobModal()">Add Jobs</button>
+    </div>
+  </div>
+
+  <!-- Interview Prep modal -->
+  <div class="modal-backdrop" id="prep-backdrop" style="display:none" onclick="closePrepModal()"></div>
+  <div class="modal" id="prep-modal" style="display:none">
+    <div class="modal-header">
+      <h2>Generate Interview Prep</h2>
+      <button class="modal-close" onclick="closePrepModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Interview Stage</label>
+      <select id="prep-stage" class="form-input">
+        <option value="General">General</option>
+        <option value="Recruiter Screen">Recruiter Screen</option>
+        <option value="Phone Screen">Phone Screen</option>
+        <option value="Onsite">Onsite</option>
+        <option value="Final Round">Final Round</option>
+      </select>
+      <label class="form-label" style="margin-top:12px">Interviewers <span style="color:var(--base0);font-weight:normal">(optional — one per line)</span></label>
+      <textarea id="prep-interviewers" class="form-input" rows="3" placeholder="Jane Doe, VP Product, linkedin.com/in/janedoe&#10;John Smith, Eng Director"></textarea>
+      <label class="form-label" style="margin-top:12px">Notes <span style="color:var(--base0);font-weight:normal">(optional)</span></label>
+      <textarea id="prep-notes" class="form-input" rows="2" placeholder="Focus on AI experience, worried about system design round..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePrepModal()">Cancel</button>
+      <button class="btn btn-primary" id="prep-generate-btn" onclick="submitPrepModal()">Generate</button>
+    </div>
+  </div>
+
+  <!-- Dedup modal -->
+  <div class="modal-backdrop" id="dedup-backdrop" style="display:none" onclick="closeDedupModal()"></div>
+  <div class="modal" id="dedup-modal" style="display:none">
+    <div class="modal-header">
+      <h2>Duplicate Jobs</h2>
+      <button class="modal-close" onclick="closeDedupModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="dedup-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDedupModal()">Close</button>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Command Palette (Cmd+K) -->
+  <div class="cmdk-backdrop" id="cmdk-backdrop" style="display:none" onclick="closeCmdK()"></div>
+  <div class="cmdk" id="cmdk" style="display:none">
+    <div class="cmdk-input-wrap">
+      <svg class="cmdk-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11.5 11.5L14.5 14.5M1.5 7a5.5 5.5 0 1011 0 5.5 5.5 0 00-11 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="text" class="cmdk-input" id="cmdk-input" placeholder="Type a command or search..." autocomplete="off" spellcheck="false">
+      <kbd class="cmdk-esc">ESC</kbd>
+    </div>
+    <div class="cmdk-list" id="cmdk-list"></div>
+    <div class="cmdk-footer">
+      <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+      <span><kbd>Enter</kbd> run</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

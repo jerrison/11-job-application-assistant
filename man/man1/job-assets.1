@@ -1,0 +1,504 @@
+.TH JOB-ASSETS 1 "March 2026" "job-assets" "User Commands"
+.SH NAME
+job-assets \- generate tailored resume and cover letter assets from job descriptions
+.SH SYNOPSIS
+.B job-assets
+[\fICOMMAND\fR] [\fIOPTIONS\fR]
+.br
+.B job-assets
+\fIJD_SOURCE\fR [\fICOMPANY\fR] [\fIROLE\fR]
+.SH DESCRIPTION
+.B job-assets
+is the provider-aware command-line entrypoint for this repository. It runs the deterministic parsing and ranking pipeline, invokes either Codex or Claude non-interactively for company research and then for resume and cover-letter drafting, then builds the final assets.
+.PP
+Claude-backed runs default to
+.B claude-sonnet-4-6
+with
+.B --effort max
+unless
+.BR CLAUDE_MODEL ,
+.BR CLAUDE_EFFORT ,
+ .BR CLAUDE_PERMISSION_MODE ,
+or
+.BR CLAUDE_EXTRA_ARGS
+override them. Codex-backed runs default to
+.B gpt-5.4
+with
+.B model_reasoning_effort="xhigh"
+unless
+.BR CODEX_MODEL ,
+.BR CODEX_REASONING_EFFORT ,
+.BR CODEX_APPROVAL_POLICY ,
+.BR CODEX_SANDBOX_MODE ,
+ .BR CODEX_PROFILE ,
+or
+.BR CODEX_EXTRA_ARGS
+override them.
+Non-interactive Claude subprocesses also pin
+.B --setting-sources project,local
+and disable session persistence plus slash commands while passing a strict empty MCP config, so local user plugins or saved interactive state do not leak into repo automation. Claude print mode also uses
+.B --permission-mode auto
+to stay close to the interactive agent loop, keeps
+.B --print
+immediately before the prompt so newer Claude CLI builds do not drop it, and submit-time Claude runs use the centralized submit-mode tool allowlist from
+.BR scripts/llm_provider.py .
+Codex exec uses explicit
+.B --ask-for-approval
+and
+.B --sandbox
+settings instead of
+.B --full-auto
+so the end-to-end CLI can mirror the user's Codex TUI config when available. When
+.B CODEX_PROFILE
+is set and the explicit
+.B CODEX_MODEL ,
+.B CODEX_REASONING_EFFORT ,
+.B CODEX_APPROVAL_POLICY ,
+and
+.B CODEX_SANDBOX_MODE
+overrides are unset, the CLI defers those core execution settings to the profile the same way the interactive TUI does; otherwise it falls back to
+.B never
+plus
+.B danger-full-access
+otherwise. Non-interactive Codex runs also launch under a temporary
+.B CODEX_HOME
+that preserves auth plus sanitized config while stripping user
+.B mcp_servers
+entries, so repo automation does not start unrelated desktop MCP servers such as Playwright or Notion. Asset generation runs in two passes: company research first, then drafting from
+.B output/<company>/research_cache.json .
+By default Claude gets 600 seconds to begin each research, drafting, or fix pass; if it exits or times out before writing the target files, the CLI retries that pass once with
+.B codex .
+Override that behavior with
+.B JOB_ASSETS_CLAUDE_PRIMARY_ASSET_TIMEOUT_SECONDS
+and
+.B JOB_ASSETS_CLAUDE_ASSET_FALLBACK_PROVIDER
+\(em including 0 or an empty value to disable it entirely. Repo entrypoints also default
+.B UV_CACHE_DIR
+to
+.B ./.uv-cache
+when it is unset so
+.B uv
+does not depend on a writable global cache path. Any fallback retry writes the transcript to the matching
+.B *_fallback_raw.txt
+artifact.
+.PP
+Submit-time generated application answers also retry once with
+.B codex
+when a Claude run fails before returning valid JSON, writing the retry transcript to
+.B submit/application_answers_fallback_raw.txt .
+.PP
+Provider subtasks that are asked to produce
+.B resume_content.json
+or
+.B cover_letter_text.txt
+must write those files directly from the prepared inputs. Recursive repo entrypoints such as
+.B job-assets
+and
+.B apply.sh
+are blocked inside those provider subprocesses so the LLM pass cannot relaunch the pipeline from within itself.
+.PP
+URL-based runs fail fast unless website extraction yields a usable job description. The scraper retries alternate extraction paths before stopping, including same-site JD discovery when the first page is a thinner application shell, rather than continuing from weak or shell-page content.
+.PP
+If configured with
+.BR CLOUDFLARE_ACCOUNT_ID
+and
+.BR CLOUDFLARE_BROWSER_RENDERING_API_TOKEN
+\(or
+.BR CLOUDFLARE_API_TOKEN ),
+the scraper can fall back to Cloudflare Browser Rendering's crawl endpoint after the local extraction methods fail.
+.PP
+The resume page break is finalized after the bullets and summary are chosen. The pipeline auto-balances
+.B page_break_before
+to avoid an unnecessarily sparse first page when possible, without changing the selected bullet mix.
+.PP
+If the first argument is a job description URL or file path, the command defaults to the
+.B pipeline
+subcommand and stops at review unless
+.B --submit
+is also present.
+.PP
+When a single-job rerun resolves to the same deterministic draft as an existing role output, the CLI reuses the existing
+.B content/
+files instead of calling the provider again. If the finalized content hashes also still match, it reuses the existing
+.B documents/
+assets instead of rebuilding unchanged resume and cover-letter files.
+.SH COMMANDS
+.TP
+.B apply
+Generate assets only for a single job posting.
+.TP
+.B pipeline
+Run the single-job flow end-to-end: generate assets, then continue into supported board autofill or submission.
+.TP
+.B batch
+Run the standard high-throughput batch flow over all discovered jobs that still need LLM-generated content. It shares the same parallel research and drafting worker pool as
+.BR parallel ,
+while the LibreOffice build phase remains sequential.
+.TP
+.B submit
+Run board-specific autofill and optional submission for an existing output directory. Supported public boards today are Greenhouse, Gem, Lever, Ashby, and Dover, including company-hosted Greenhouse wrapper URLs that include
+.B gh_jid
+query parameters and company-hosted Ashby wrapper URLs that include
+.B ashby_jid
+query parameters, plus direct Ashby
+.B jobs.ashbyhq.com/.../application
+URLs that are canonicalized back to the posting URL before scrape, plus thin same-site application shells that trigger a same-site search for the fuller JD page, plus Dover
+.B app.dover.com/apply/<company>/<job-or-search-id>
+URLs that submit through Dover's public application API. Greenhouse submit automation handles classic and modern embeds, post-submit email verification codes, same-page confirmation states, and direct
+.B job-boards.greenhouse.io/...
+pages that need a visible page-level
+.B Apply
+CTA clicked before the inline form mounts. Lever submit automation uses the static
+.B /apply
+form, skips non-fillable Apply-with-LinkedIn widget rows, uses exact word-boundary label matching so short fragments like
+.B city
+do not bind to unrelated questions, targets the underlying radio / checkbox inputs when the embedded hCaptcha widget intercepts label clicks, pastes long free-text answers directly, waits for a manual hCaptcha solve only after the full form is ready to submit, and supports the same shared Notion sync path. Dover submit automation mirrors the live frontend multipart payload, keeps LinkedIn / resume / phone fields at the top level, sends only CUSTOM questions in
+.B application_questions
+JSON, and forwards
+.B rs
+or
+.B referrerSource
+from the posting URL as
+.B referrer_source .
+.PP
+For classic Greenhouse embeds, the submitter also handles required
+.B question_option_id
+selects for work-authorization, commute-proximity, and in-office-availability gates, including city-specific options such as
+.B "Yes, San Francisco" .
+Location prompts that sound city-based but actually expose state-only choices are resolved against the profile state, so a candidate location like
+.B "San Francisco, CA"
+can still select
+.B California
+instead of posting a blank combobox.
+Explicit state-list residency gates such as
+.B "Do you live in one of the following states?"
+are answered from the candidate's actual current state in
+.B application_profile.md
+rather than from the generic
+.B "Live In Job Location"
+boolean.
+Raw bracketed demographic field names from older EEOC markup are left to the visible demographic-question runtime instead of being treated as free-form text-entry steps.
+Some classic Greenhouse forms also require a visible education row even when the posting never mentions education; the submitter fills one live row from
+.B master_resume.md
+using the candidate's real school, degree, discipline, and end year, and targets the rendered form controls instead of hidden template rows or disabled select2 scaffolding.
+Visible demographic-question groups such as Gender Identity, Race/Ethnicity, Pronouns, Sexual Orientation, Veteran Status, Disability Status, racial/ethnic background, transgender identity, or veteran/active-member prompts are answered from
+.B application_profile.md ;
+when one of those groups is required and no explicit configured value exists, the runtime chooses the board's explicit decline / no-answer option instead of stalling on an otherwise complete application.
+If
+.B application_profile.md
+already has a
+.B Transgender Status
+value, that explicit value is used instead of declining.
+The runtime targets the real nested
+.B .demographic_question
+groups before broader container fallbacks so classic multi-question EEOC sections do not collapse into one missed block.
+A yes/no prompt that mentions both work authorization and sponsorship or visas is treated as a sponsorship question first, so future-sponsorship gates are not answered
+.B Yes
+just because the candidate is already authorized to work unconditionally.
+Across the supported submitters, explicit salary/compensation-comfort yes/no gates are answered from
+.B application_profile.md .
+Any newly added job board or company-hosted wrapper should inherit the same baseline submit criteria immediately: deterministic profile-driven answers for known yes/no and self-ID prompts, confirmed resume and cover-letter attachment or fill, fail-closed pending-user-input artifacts for unsupported narrative questions, no submit while planned fields remain unconfirmed, and the same website/email/Notion confirmation artifacts used on the existing boards.
+Long free-text prompts are not reduced to yes/no defaults just because they contain words like
+.B experience ,
+.B onsite ,
+or
+.B location .
+The specific onsite proceed/start/location prompt is answered deterministically as
+.B Yes ,
+the Monday in two weeks in long-date format such as
+.B "March 23, 2026" ,
+and the configured city from
+.B application_profile.md .
+If a long free-text question asks for specialized domain detail that the automation cannot safely infer, the run writes
+.B submit/pending_user_input.json
+and stops before submission.
+If any planned autofill field still cannot be confirmed on the live form, the run also writes those exact unresolved fields into
+.B submit/pending_user_input.json
+and stops before submission; every planned field must be confirmed before submit.
+If a Greenhouse cover-letter question exposes both an upload control and a manual-entry textarea, the submitter prefers the existing cover-letter file. On classic
+.B attach-or-paste
+uploaders, it uses the attach path even when the underlying file input only appears after clicking the attach button. If a board exposes only a cover-letter textarea or upload field, the submitter must confirm the text or file is actually present before allowing submit; otherwise the run fails instead of silently skipping the slot.
+Shared Gmail confirmation polling is time-bounded so a stalled
+.B gws
+lookup cannot freeze the submit loop. The Gmail matcher is also company-scoped and anchored to the submit timestamp so unrelated older application emails are not reused accidentally. When
+.B gws
+is used for Greenhouse verification codes, that lookup is also anchored to the current submit attempt and waits briefly for the fresh verification message so stale codes from earlier retries are not reused.
+On macOS, headed local Chrome launches keep the native GUI environment instead of rewriting
+.B HOME
+or
+.B XDG_*
+variables; the persistent Playwright user-data dir already isolates the session, and synthetic home directories can crash AppKit/HIServices startup.
+Headless local Chrome launches on macOS use an isolated submit-home again so Chrome state such as Crashpad does not point at sandbox-protected user directories.
+If a persistent-profile macOS launch still aborts early, the launcher retries once without persistence before failing the local browser path.
+Equivalent local-browser attempts are also deduplicated so the same Chrome app is not immediately relaunched through both the Playwright channel and executable-path fallbacks after one startup abort.
+For headed macOS submit flows, the launcher also skips the bundled Playwright
+.B "Google Chrome for Testing"
+fallback because that cache-installed app can abort during AppKit/HIServices startup.
+Use an installed local browser such as Chrome / Chromium / Edge or
+.B JOB_ASSETS_BROWSER_PROVIDER=steel
+instead.
+When
+.B submit/application_submission_result.json
+already records a website-confirmed application, rerunning
+.B job-assets submit --submit
+or the same
+.B job-assets pipeline --submit
+command skips the duplicate live resubmit and resumes only the email/Notion reconciliation work. If
+.B submit/notion_sync_status.json
+was updated recently with
+.B pending_email_confirmation,
+reruns also skip another full Gmail wait until the cooldown expires. Matching
+.B submit/application_answers.json
+payloads are reused automatically during submit retries. Submit-time answer generation respects
+.B JOB_ASSETS_PROVIDER_TIMEOUT_SECONDS
+\(dqdefault 600 seconds, 0 disables\(dq, while full resume and cover-letter generation uses
+.B JOB_ASSETS_ASSET_PROVIDER_TIMEOUT_SECONDS
+\(dqdefault 1200 seconds, falls back to the general timeout override\(dq. Asset-generation raw provider output is written to
+.B content/llm_research_raw.txt ,
+.B content/llm_drafting_raw.txt ,
+and
+.B content/llm_fix_attempt_<n>_raw.txt.
+If the provider exits non-zero after already writing updated content files, the pipeline finalizes and continues instead of discarding those artifacts.
+.PP
+The default batch and parallel worker count auto-sizes to
+.B max(4, min(cpu_count * 2, 16))
+unless
+.B --max-parallel ,
+.BR JOB_ASSETS_MAX_PARALLEL ,
+or
+.B MAX_PARALLEL
+override it. Supporting-doc sync fetches
+.B work_stories.md
+and
+.B candidate_context.md
+in parallel before generation starts, and same-company workers coordinate through a lock on
+.B output/<company>/research_cache.json
+so one company is researched once even when multiple roles fan out together.
+.PP
+The shared Gmail confirmation matcher carries the submit-start timestamp into the Notion-sync path and requires a plausible company or board/provider match before it accepts an email. This prevents unrelated older application confirmations from satisfying a new submit run just because they share generic role words.
+.PP
+Ashby submit confirmation also recognizes success banners such as
+.B "Your application was successfully submitted"
+and treats passive reCAPTCHA badges as non-blocking unless an active challenge frame is visible.
+.PP
+Standalone
+.B job-assets notion-sync
+reruns anchor their Gmail search to the recorded website-confirmation timestamp and clear stale
+.B submit/application_confirmation_email.json
+artifacts when no fresh match exists, so older unrelated confirmation emails are not reused accidentally during a later resync.
+.TP
+.B parallel
+Run the parallel batch flow. The research and drafting phases run concurrently across jobs, while the LibreOffice build phase remains sequential.
+On macOS, PDF conversion forces LibreOffice onto the
+.B svp
+VCL backend and overrides inherited
+.B SAL_USE_VCLPLUGIN
+values such as
+.B osx
+so headless runs do not abort in AppKit/HIServices.
+.TP
+.B doctor
+Show command installation, provider diagnostics, and submit-browser profile defaults.
+.TP
+.B profile
+Show the editable application-profile defaults file or print its path.
+.TP
+.B notion-sync
+Sync a website-confirmed application into the Notion tracker after the matching confirmation email arrives.
+.TP
+.B install
+Install symlinks for
+.BR job-assets ,
+.BR job-assets-codex ,
+and
+.BR job-assets-claude
+into a bin directory, and install man pages into a man directory.
+.TP
+.B man
+Open the bundled man page directly from the repository.
+.SH EXAMPLES
+.TP
+.B job-assets https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow using the default provider.
+.TP
+.B job-assets --submit https://boards.greenhouse.io/company/jobs/12345
+Run the end-to-end single-job flow and submit after review.
+.TP
+.B job-assets apply --provider codex tmp/jd.md acme senior-pm
+Generate assets only with Codex and explicit company and role overrides.
+.TP
+.B job-assets pipeline --submit https://boards.greenhouse.io/company/jobs/12345
+Generate assets, continue into the supported board runtime, and submit after review.
+.TP
+.B job-assets batch --provider claude
+Run the standard high-throughput batch workflow with Claude.
+.TP
+.B job-assets submit output/company/role-slug --submit
+Launch the supported board submitter for an existing job output directory and submit after review.
+.TP
+.B job-assets submit output/company/role-slug --submit --reapply
+Create a fresh
+.B submit-*
+attempt directory for an already-submitted role and rerun the supported board submitter without overwriting the previous submit artifacts. Retries of that same in-flight reapply keep using the same
+.B submit-*
+directory until the submission completes. The rest of the submit-plus-sync flow stays pinned to that exact attempt directory. Matching cached submit artifacts from earlier attempts, such as generated application answers or cached Greenhouse application-page HTML, are reused automatically when the live inputs have not changed.
+.TP
+.B job-assets submit output/company/role-slug --submit --browser-provider steel
+Launch the supported board submitter using Steel as the browser backend and print a Steel session viewer URL for manual review steps.
+.TP
+.B job-assets parallel --provider codex --max-parallel 6
+Run the parallel batch workflow with up to six concurrent LLM jobs.
+.TP
+.B job-assets profile show
+Print the current application-form defaults used by autofill flows.
+.TP
+.B job-assets notion-sync output/company/role-slug
+Sync a submitted application into the Notion tracker, waiting for the confirmation email if needed.
+.TP
+.B job-assets man
+Open this manual page directly, even if it has not been installed globally yet.
+.SH OPTIONS
+.SS apply
+.TP
+.BI --provider " {claude|codex}"
+LLM provider to use for content generation.
+.TP
+.B --skip-sync
+Skip syncing
+.I work_stories.md
+and
+.I candidate_context.md
+before generation.
+.TP
+.I JD_SOURCE
+Job description URL or local file path.
+.TP
+.I COMPANY
+Optional company slug override.
+.TP
+.I ROLE
+Optional role slug override.
+.SS pipeline
+.TP
+.BI --provider " {claude|codex}"
+LLM provider to use for asset generation and submit-time answers.
+.TP
+.B --skip-sync
+Skip syncing
+.I work_stories.md
+and
+.I candidate_context.md
+before generation.
+.TP
+.BI --browser-provider " {local|steel}"
+Browser runtime to use for the submit automation stage.
+.TP
+.B --payload-only
+Generate the board-specific autofill payload after assets are built, but do not launch the browser.
+.TP
+.B --headless
+Run the submit automation stage in headless mode.
+.TP
+.B --submit
+Submit the application after autofill. Without this flag, the runtime stops at a review state.
+.TP
+.I JD_SOURCE
+Job description URL or local file path.
+.TP
+.I COMPANY
+Optional company slug override.
+.TP
+.I ROLE
+Optional role slug override.
+.SS batch
+.TP
+.B --dry-run
+List matching jobs without processing them.
+.TP
+.BI --max-parallel " N"
+Maximum number of concurrent LLM jobs for the shared batch worker pool.
+.TP
+.BI --provider " {claude|codex}"
+LLM provider to use for content generation.
+.SS submit
+.TP
+.I TARGET
+Existing output directory or matching job URL to submit through the supported board runtime.
+.TP
+.B --payload-only
+Only generate the board-specific autofill payload without launching the browser.
+.TP
+.B --headless
+Run the board submitter in headless mode.
+.TP
+.B --submit
+Submit the application after autofill. Without this flag, the runtime stops at a review state.
+.TP
+.BI --provider " {claude|codex}"
+LLM provider to use for generated open-ended application answers.
+.SS parallel
+.TP
+.B --dry-run
+List matching jobs without processing them.
+.TP
+.B --build-only
+Skip LLM generation and only build documents for jobs that already have final content files.
+.TP
+.BI --max-parallel " N"
+Maximum number of concurrent LLM jobs.
+.TP
+.BI --provider " {claude|codex}"
+LLM provider to use for content generation.
+.SS profile
+.TP
+.I show
+Print the current contents of
+.IR application_profile.md .
+.TP
+.I path
+Print the path to
+.IR application_profile.md .
+.SS notion-sync
+.TP
+.I TARGET
+Output directory or matching job URL to sync into Notion.
+.TP
+.BI --wait-for-email " N"
+Seconds to wait for the matching confirmation email before leaving the sync pending.
+.TP
+.B --allow-pending-email
+Exit successfully when the website confirmation exists but the confirmation email has not arrived yet.
+.TP
+.B --strict-token
+Exit non-zero when
+.B NOTION_API_TOKEN
+is missing instead of writing a pending sync status artifact.
+.SH FILES
+.TP
+.I ~/.local/bin
+Recommended install location for command symlinks.
+.TP
+.I /opt/homebrew/share/man/man1
+Default install location for man page symlinks on this machine.
+.TP
+.I output/<company>/<role>/
+Role root containing
+.IR content/ ,
+.IR documents/ ,
+and
+.IR submit/
+subdirectories plus
+.IR .pipeline_meta.json .
+.TP
+.I application_profile.md
+Editable application-form defaults for work authorization, sponsorship, compensation/salary-comfort gates, text-message consent, hearing-about-us answers, LinkedIn, GitHub, website URLs, pronouns, and voluntary self-identification answers.
+.TP
+.I .env.local
+Gitignored repo-local environment file. The CLI and shared scripts auto-load it for persistent secrets such as
+.BR NOTION_API_TOKEN .
+.TP
+.I output/<company>/<role>/submit/notion_sync_status.json
+Status artifact for automatic or manual Notion application sync attempts.
+.SH SEE ALSO
+.BR job-assets-codex (1),
+.BR job-assets-claude (1)

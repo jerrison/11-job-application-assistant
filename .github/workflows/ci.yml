@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lint:
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'codex/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run Ruff linter
+        run: uv run ruff check scripts/ tests/
+
+  architecture:
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'codex/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Validate import architecture
+        run: uv run python scripts/check_architecture.py
+
+  agent-docs:
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'codex/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Validate agent file sync
+        run: uv run python scripts/sync_agent_files.py --check
+
+      - name: Validate agent docs
+        run: uv run python scripts/check_agent_docs.py
+
+  unit-tests:
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'codex/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install Playwright browsers
+        run: uv run python -m playwright install --with-deps chromium
+
+      - name: Run unit tests with coverage
+        run: uv run python -m pytest tests/ -v --tb=short
