@@ -8,7 +8,6 @@ import importlib.util
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -59,6 +58,9 @@ from output_layout import (  # noqa: E402
     submit_dirs_by_mtime,
 )
 from project_env import load_project_env  # noqa: E402
+from runtime_entrypoints import python_script_command  # noqa: E402
+from runtime_policy import ensure_action_allowed  # noqa: E402
+from runtime_trace import configure_runtime_trace, emit_trace  # noqa: E402
 from worker_subprocess import run_worker_subprocess  # noqa: E402
 
 PROJECT_ROOT = SCRIPT_DIR.parent
@@ -703,6 +705,7 @@ def _verify_submit_approved(output_dir: str | None) -> bool:
 
 
 def main() -> int:
+    configure_runtime_trace(environ=os.environ, replace=True)
     parser = argparse.ArgumentParser(description="Dispatch application submit automation based on the job-board URL.")
     parser.add_argument(
         "target",
@@ -818,11 +821,22 @@ def main() -> int:
     if submit and not _verify_submit_approved(str(out_dir)):
         print("SAFETY: --submit passed but job was not explicitly approved. Falling back to --draft.", file=sys.stderr)
         submit = False
+    if submit:
+        trace_metadata = {"surface": "submit_application", "board": board, "output_dir": str(out_dir)}
+        ensure_action_allowed(
+            "live_submit",
+            explicit_approval=True,
+            metadata=trace_metadata,
+            environ=os.environ,
+        )
+        emit_trace(
+            "live_submit_started",
+            action="live_submit",
+            metadata=trace_metadata,
+            environ=os.environ,
+        )
 
-    if shutil.which("uv"):
-        cmd = ["uv", "run", "--project", str(PROJECT_ROOT), "python", str(script), str(out_dir)]
-    else:
-        cmd = [sys.executable, str(script), str(out_dir)]
+    cmd = python_script_command(script, str(out_dir), environ=os.environ)
     if args.payload_only:
         cmd.append("--payload-only")
     if args.headless:
@@ -841,6 +855,19 @@ def main() -> int:
     _clear_stale_current_attempt_terminal_artifacts(out_dir, submit_dirname)
     started_at_utc = datetime.now(UTC)
     completed: subprocess.CompletedProcess = run_worker_subprocess(cmd, cwd=PROJECT_ROOT, env=env)
+    if submit:
+        emit_trace(
+            "live_submit_completed",
+            action="live_submit",
+            status="ok" if completed.returncode == 0 else "error",
+            metadata={
+                "surface": "submit_application",
+                "board": board,
+                "output_dir": str(out_dir),
+                "returncode": completed.returncode,
+            },
+            environ=os.environ,
+        )
     current_result = _read_submit_json(out_dir / submit_dirname / SUBMISSION_RESULT_JSON)
     if current_result is not None:
         current_status = str(current_result.get("status") or "").strip().casefold()

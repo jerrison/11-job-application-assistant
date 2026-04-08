@@ -45,6 +45,7 @@ from llm_provider import (  # noqa: E402
     effective_provider_settings,
 )
 from project_env import PROJECT_ENV_FILES, load_project_env  # noqa: E402
+from runtime_trace import configure_runtime_trace  # noqa: E402
 from worker_subprocess import run_worker_subprocess  # noqa: E402
 
 load_project_env()
@@ -70,6 +71,7 @@ KNOWN_COMMANDS = {
     "report",
     "retry",
     "skip",
+    "settings",
     "status",
     "submit",
     "tui",
@@ -82,21 +84,38 @@ PROVIDER_ALIASES = {
     "job-assets-gemini": "gemini",
 }
 OPTIONS_WITH_VALUES = {
+    "--anthropic-api-key",
     "--bin-dir",
     "--board",
     "--browser-provider",
+    "--claude-model",
+    "--codex-api-key",
+    "--codex-model",
+    "--default-provider",
+    "--file",
     "--format",
+    "--gemini-api-key",
+    "--gemini-flash-model",
+    "--gemini-model",
     "--limit",
     "--man-dir",
     "--max-parallel",
+    "--openai-api-key",
+    "--openai-api-keys",
+    "--openai-model",
     "--output-dir",
     "--priority",
     "--provider",
+    "--provider-chain",
     "--saved-portal",
     "--search",
     "--since",
     "--source",
+    "--steel-api-key",
+    "--steel-base-url",
     "--status",
+    "--text",
+    "--url",
     "--wait-for-email",
     "--workers",
 }
@@ -142,6 +161,20 @@ def default_man_topic() -> str:
 
 def command_prefix() -> str:
     return COMMAND_NAME
+
+
+def _settings_store_module():
+    import settings_store
+
+    return settings_store
+
+
+def _print_json(data: dict) -> None:
+    print(json.dumps(data, indent=2, sort_keys=True))
+
+
+def _settings_material_keys() -> tuple[str, ...]:
+    return ("master_resume", "work_stories", "candidate_context", "application_profile")
 
 
 def application_profile_path() -> Path:
@@ -381,6 +414,88 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"steel api key: {'configured' if steel_api_key() else 'missing'}")
     for provider, location in providers.items():
         print(f"{provider}:         {location or 'not found'}")
+    return 0
+
+
+def cmd_settings_show(args: argparse.Namespace) -> int:
+    store = _settings_store_module()
+    payload = {
+        "settings": store.load_settings(),
+        "bootstrap": store.load_bootstrap(),
+    }
+    if args.json:
+        _print_json(payload)
+        return 0
+
+    print(f"settings root: {materials_root()}")
+    print(f"onboarding complete: {payload['bootstrap']['onboarding']['complete']}")
+    for key, meta in payload["settings"]["materials"].items():
+        state = "ready" if meta["has_content"] else "missing"
+        print(f"{key}: {state} ({meta['path']})")
+    configured = [key for key, meta in payload["settings"]["credentials"].items() if meta["configured"]]
+    print(f"configured credentials: {', '.join(configured) if configured else 'none'}")
+    return 0
+
+
+def cmd_settings_import(args: argparse.Namespace) -> int:
+    store = _settings_store_module()
+    import_kwargs: dict[str, object] = {}
+    if args.text is not None:
+        import_kwargs["text"] = args.text
+    elif args.url is not None:
+        import_kwargs["source_url"] = args.url
+    elif args.file is not None:
+        path = Path(args.file).expanduser()
+        import_kwargs["file_name"] = path.name
+        import_kwargs["content_bytes"] = path.read_bytes()
+    else:
+        raise ValueError("Provide one import source: --text, --url, or --file")
+
+    result = store.import_material(args.material_key, **import_kwargs)
+    if args.json:
+        _print_json(result)
+    else:
+        print(
+            f"{args.material_key} imported; onboarding_complete="
+            f"{result['bootstrap']['onboarding']['complete']}"
+        )
+    return 0
+
+
+def cmd_settings_set(args: argparse.Namespace) -> int:
+    store = _settings_store_module()
+    providers = {
+        key: value
+        for key, value in {
+            "default_provider": args.default_provider,
+            "provider_chain": args.provider_chain,
+            "openai_model": args.openai_model,
+            "gemini_model": args.gemini_model,
+            "gemini_flash_model": args.gemini_flash_model,
+            "codex_model": args.codex_model,
+            "claude_model": args.claude_model,
+            "steel_base_url": args.steel_base_url,
+            "steel_local": args.steel_local,
+        }.items()
+        if value is not None
+    }
+    credentials = {
+        key: value
+        for key, value in {
+            "openai_api_key": args.openai_api_key,
+            "openai_api_keys": args.openai_api_keys,
+            "gemini_api_key": args.gemini_api_key,
+            "codex_api_key": args.codex_api_key,
+            "anthropic_api_key": args.anthropic_api_key,
+            "steel_api_key": args.steel_api_key,
+        }.items()
+        if value is not None
+    }
+    settings = store.save_settings({"providers": providers, "credentials": credentials})
+    if args.json:
+        _print_json(settings)
+    else:
+        print("settings updated")
     return 0
 
 
@@ -1224,6 +1339,9 @@ def build_parser() -> argparse.ArgumentParser:
         f"  {command_prefix()} submit output/acme/senior-pm --submit\n"
         f"  {command_prefix()} batch --max-parallel 6\n"
         f"  {command_prefix()} parallel --max-parallel 6\n"
+        f"  {command_prefix()} settings show\n"
+        f"  {command_prefix()} settings import master_resume --file ~/resume.docx\n"
+        f"  {command_prefix()} settings set --openai-api-key sk-... --gemini-api-key ai-...\n"
         f"  {command_prefix()} profile show\n"
         f"  {command_prefix()} notion-sync output/company/role-slug\n"
         f"  {command_prefix()} man\n"
@@ -1363,6 +1481,54 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show installation and provider diagnostics",
     )
     doctor_parser.set_defaults(func=cmd_doctor)
+
+    settings_parser = subparsers.add_parser(
+        "settings",
+        help="Show and update shared onboarding materials, providers, and API keys",
+    )
+    settings_sub = settings_parser.add_subparsers(dest="settings_command", required=True)
+
+    settings_show_parser = settings_sub.add_parser(
+        "show",
+        help="Print the current shared settings state",
+    )
+    settings_show_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    settings_show_parser.set_defaults(func=cmd_settings_show)
+
+    settings_import_parser = settings_sub.add_parser(
+        "import",
+        help="Import one shared onboarding material from text, a file, or a public URL",
+    )
+    settings_import_parser.add_argument("material_key", choices=_settings_material_keys())
+    import_source_group = settings_import_parser.add_mutually_exclusive_group(required=True)
+    import_source_group.add_argument("--file", help="Local file path to import")
+    import_source_group.add_argument("--url", help="Public Google Drive/Docs link or other fetchable URL")
+    import_source_group.add_argument("--text", help="Literal text or markdown content")
+    settings_import_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    settings_import_parser.set_defaults(func=cmd_settings_import)
+
+    settings_set_parser = settings_sub.add_parser(
+        "set",
+        help="Update shared provider defaults and API credentials",
+    )
+    settings_set_parser.add_argument("--default-provider", choices=VALID_PROVIDERS)
+    settings_set_parser.add_argument("--provider-chain")
+    settings_set_parser.add_argument("--openai-model")
+    settings_set_parser.add_argument("--gemini-model")
+    settings_set_parser.add_argument("--gemini-flash-model")
+    settings_set_parser.add_argument("--codex-model")
+    settings_set_parser.add_argument("--claude-model")
+    settings_set_parser.add_argument("--steel-base-url")
+    settings_set_parser.add_argument("--steel-local", action="store_true", default=None)
+    settings_set_parser.add_argument("--steel-remote", dest="steel_local", action="store_false")
+    settings_set_parser.add_argument("--openai-api-key")
+    settings_set_parser.add_argument("--openai-api-keys")
+    settings_set_parser.add_argument("--gemini-api-key")
+    settings_set_parser.add_argument("--codex-api-key")
+    settings_set_parser.add_argument("--anthropic-api-key")
+    settings_set_parser.add_argument("--steel-api-key")
+    settings_set_parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    settings_set_parser.set_defaults(func=cmd_settings_set)
 
     profile_parser = subparsers.add_parser(
         "profile",
@@ -1629,6 +1795,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     abort_if_recursive_entrypoints_forbidden(COMMAND_NAME)
     _maybe_reexec_cli_with_uv()
+    configure_runtime_trace(environ=os.environ, replace=True)
     parser = build_parser()
     argv = preprocess_argv(sys.argv[1:])
     args = parser.parse_args(argv)

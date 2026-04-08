@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import time
 import unittest
 from pathlib import Path
@@ -43,6 +44,27 @@ class _DummyResponse:
 
 
 class RunPipelineSyncTests(unittest.TestCase):
+    def test_module_paths_follow_runtime_home_override(self):
+        with TemporaryDirectory() as tmp_dir:
+            runtime_root = Path(tmp_dir) / "runtime-home"
+            with mock.patch.dict(os.environ, {"JOB_ASSETS_APP_HOME": str(runtime_root)}, clear=True):
+                run_pipeline = load_module("run_pipeline_runtime_home", "scripts/run_pipeline.py")
+
+                self.assertEqual(run_pipeline.WORK_STORIES_PATH, runtime_root / "work_stories.md")
+                self.assertEqual(run_pipeline.CANDIDATE_CONTEXT_PATH, runtime_root / "candidate_context.md")
+                self.assertEqual(
+                    run_pipeline.SYNC_STATE_PATH,
+                    runtime_root / ".work_stories_sync_state.json",
+                )
+                self.assertEqual(
+                    run_pipeline.CANDIDATE_CONTEXT_SYNC_STATE_PATH,
+                    runtime_root / ".candidate_context_sync_state.json",
+                )
+
+                tmp_path = run_pipeline._create_pipeline_tmp_dir()
+                self.assertEqual(tmp_path.parent, runtime_root / "tmp" / "pipeline")
+                self.assertTrue(tmp_path.exists())
+
     def test_sync_google_doc_writes_output_and_state(self):
         run_pipeline = load_module("run_pipeline", "scripts/run_pipeline.py")
         payload = b"candidate context\n"
@@ -78,6 +100,30 @@ class RunPipelineSyncTests(unittest.TestCase):
 
         sync_work_stories.assert_called_once_with()
         sync_candidate_context.assert_called_once_with()
+
+    def test_sync_work_stories_skips_without_configured_source_url(self):
+        run_pipeline = load_module("run_pipeline", "scripts/run_pipeline.py")
+        previous = os.environ.pop(run_pipeline.WORK_STORIES_SOURCE_URL_ENV, None)
+        try:
+            with mock.patch.object(run_pipeline, "_sync_google_doc") as sync_remote_source:
+                run_pipeline.sync_work_stories()
+        finally:
+            if previous is not None:
+                os.environ[run_pipeline.WORK_STORIES_SOURCE_URL_ENV] = previous
+
+        sync_remote_source.assert_not_called()
+
+    def test_sync_candidate_context_skips_without_configured_source_url(self):
+        run_pipeline = load_module("run_pipeline", "scripts/run_pipeline.py")
+        previous = os.environ.pop(run_pipeline.CANDIDATE_CONTEXT_SOURCE_URL_ENV, None)
+        try:
+            with mock.patch.object(run_pipeline, "_sync_google_doc") as sync_remote_source:
+                run_pipeline.sync_candidate_context()
+        finally:
+            if previous is not None:
+                os.environ[run_pipeline.CANDIDATE_CONTEXT_SOURCE_URL_ENV] = previous
+
+        sync_remote_source.assert_not_called()
 
     def test_run_step_uses_devnull_stdin(self):
         run_pipeline = _get_run_pipeline()

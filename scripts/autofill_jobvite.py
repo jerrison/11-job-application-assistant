@@ -15,7 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
-    PROJECT_ROOT,
+    MASTER_RESUME_PATH,
     build_simple_payload,
     find_cover_letter_file,
     find_resume_file,
@@ -241,7 +241,7 @@ def _jobvite_application_url(job_url: str) -> str:
 def _build_payload(out_dir: Path, provider: str) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    master_resume_text = (PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8")
+    master_resume_text = MASTER_RESUME_PATH.read_text(encoding="utf-8")
     profile = parse_master_resume(master_resume_text)
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     job_url = preferred_meta_job_url(meta, keys=("jd_source_resolved", "jd_source"))

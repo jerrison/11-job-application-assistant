@@ -83,11 +83,11 @@ def main():
         )
 
     # Sanity check for candidate name
-    if "JERRISON LI" in full_text.upper():
-        print("PASS: Candidate name 'JERRISON LI' found.")
+    if "CANDIDATE NAME" in full_text.upper():
+        print("PASS: Candidate name 'CANDIDATE NAME' found.")
     else:
         passed = False
-        print("FAIL: Candidate name 'JERRISON LI' not found in PDF text.")
+        print("FAIL: Candidate name 'CANDIDATE NAME' not found in PDF text.")
 
     sys.exit(0 if passed else 1)
 

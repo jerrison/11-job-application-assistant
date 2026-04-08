@@ -7,11 +7,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import material_path, output_root
+
+PROJECT_ROOT = SCRIPT_DIR.parent
 SYNC_SCRIPT = PROJECT_ROOT / "scripts" / "sync_master_resume.py"
 RENDER_SCRIPT = PROJECT_ROOT / "scripts" / "render_resume_pdf.py"
-OUTPUT_MD = PROJECT_ROOT / "master_resume.md"
-OUTPUT_PDF = PROJECT_ROOT / "output" / "pdf" / "master_resume.pdf"
+OUTPUT_MD = material_path("master_resume.md")
+OUTPUT_PDF = output_root() / "pdf" / "master_resume.pdf"
 
 
 def select_python() -> Path:

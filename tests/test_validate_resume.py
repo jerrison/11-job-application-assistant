@@ -47,7 +47,7 @@ def test_validate_resume_accepts_lenient_resume_content_json(tmp_path, capsys):
     content_dir.mkdir(parents=True)
     documents_dir.mkdir(parents=True)
 
-    pdf_path = documents_dir / "Jerrison Li Resume - Acme.pdf"
+    pdf_path = documents_dir / "Candidate Name Resume - Acme.pdf"
     pdf_path.write_text("pdf placeholder", encoding="utf-8")
     content_dir.joinpath("resume_content.json").write_text(
         (
@@ -76,7 +76,7 @@ def test_validate_resume_accepts_lenient_resume_content_json(tmp_path, capsys):
         encoding="utf-8",
     )
 
-    fake_pdf = _FakePdf(["Jerrison Li", "More Jerrison Li"])
+    fake_pdf = _FakePdf(["Candidate Name", "More Candidate Name"])
 
     with (
         patch.object(validate_resume.pdfplumber, "open", return_value=fake_pdf),

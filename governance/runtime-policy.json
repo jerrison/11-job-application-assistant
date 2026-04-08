@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "actions": {
+    "mac_app_launch": {
+      "tier": "L0",
+      "allow": true,
+      "requires_explicit_approval": false,
+      "required_metadata": ["surface", "with_workers"]
+    },
+    "settings_save": {
+      "tier": "L1",
+      "allow": true,
+      "requires_explicit_approval": false,
+      "required_metadata": ["surface"]
+    },
+    "material_import": {
+      "tier": "L1",
+      "allow": true,
+      "requires_explicit_approval": false,
+      "required_metadata": ["surface", "material_key"]
+    },
+    "worker_control": {
+      "tier": "L1",
+      "allow": true,
+      "requires_explicit_approval": false,
+      "required_metadata": ["surface", "operation"]
+    },
+    "provider_call": {
+      "tier": "L1",
+      "allow": true,
+      "requires_explicit_approval": false,
+      "required_metadata": ["surface", "provider", "model"]
+    },
+    "live_submit": {
+      "tier": "L3",
+      "allow": true,
+      "requires_explicit_approval": true,
+      "required_metadata": ["surface", "board", "output_dir"]
+    }
+  }
+}

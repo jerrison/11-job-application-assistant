@@ -14,7 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
-    PROJECT_ROOT,
+    MASTER_RESUME_PATH,
     build_simple_payload,
     find_cover_letter_file,
     find_cover_letter_text,
@@ -243,7 +243,7 @@ def _sync_live_fields(page, payload_path: Path) -> None:
     if not live_fields:
         return
 
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     steps = [dict(step) for step in list(payload.get("steps") or [])]
     step_indexes = {
@@ -297,7 +297,7 @@ def _sync_live_fields(page, payload_path: Path) -> None:
 def _build_payload(out_dir: Path, provider: str) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     try:

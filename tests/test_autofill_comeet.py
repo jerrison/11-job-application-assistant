@@ -40,9 +40,9 @@ class ComeetPayloadTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        first_name="Jerrison",
-                        last_name="Li",
-                        email="jerrisonli@gmail.com",
+                        first_name="Candidate",
+                        last_name="Name",
+                        email="candidate@example.com",
                         phone="555-555-5555",
                     ),
                 ),
@@ -50,7 +50,7 @@ class ComeetPayloadTests(unittest.TestCase):
                     autofill,
                     "parse_application_profile",
                     return_value=SimpleNamespace(
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
+                        linkedin="https://linkedin.com/in/candidate/",
                         verification_code_email=None,
                     ),
                 ),
@@ -60,7 +60,7 @@ class ComeetPayloadTests(unittest.TestCase):
                 payload = autofill._build_payload(out_dir, provider="claude")
 
         linkedin_step = next(step for step in payload["steps"] if step["field_name"] == "linkedin")
-        self.assertEqual(linkedin_step["value"], "https://www.linkedin.com/in/jerrisonli/")
+        self.assertEqual(linkedin_step["value"], "https://linkedin.com/in/candidate/")
 
     def test_wait_for_comeet_form_uses_targeted_fallback_selector(self):
         autofill = load_module("autofill_comeet", "scripts/autofill_comeet.py")

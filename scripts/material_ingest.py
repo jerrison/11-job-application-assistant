@@ -6,7 +6,7 @@ from __future__ import annotations
 import io
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 from docx import Document
@@ -14,6 +14,7 @@ from lxml import html
 from pypdf import PdfReader
 
 _GOOGLE_DOC_RE = re.compile(r"^https?://docs\.google\.com/document/d/([A-Za-z0-9_-]+)")
+_GOOGLE_DRIVE_FILE_RE = re.compile(r"^https?://drive\.google\.com/file/d/([A-Za-z0-9_-]+)")
 
 
 class FetchResult:
@@ -32,6 +33,18 @@ def normalize_source_url(source_url: str) -> str:
     if match:
         doc_id = match.group(1)
         return f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+
+    parsed = urlsplit(normalized)
+    host = parsed.netloc.removeprefix("www.").casefold()
+    if host == "drive.google.com":
+        match = _GOOGLE_DRIVE_FILE_RE.match(normalized)
+        if match:
+            file_id = match.group(1)
+            return f"https://drive.google.com/uc?export=download&id={file_id}"
+        if parsed.path == "/open":
+            file_id = parse_qs(parsed.query).get("id", [""])[0].strip()
+            if file_id:
+                return f"https://drive.google.com/uc?export=download&id={file_id}"
     return normalized
 
 

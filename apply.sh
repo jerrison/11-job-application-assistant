@@ -24,6 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 source "$SCRIPT_DIR/scripts/llm_common.sh"
 ASSET_STATE_SCRIPT="$SCRIPT_DIR/scripts/asset_pipeline_state.py"
+CANDIDATE_NAME="${JOB_ASSETS_CANDIDATE_NAME:-Candidate Name}"
 
 case "${JOB_ASSETS_FORBID_RECURSIVE_ENTRYPOINTS:-}" in
     ""|0|false|False|FALSE) ;;
@@ -316,9 +317,9 @@ fi
 # ─── Step 3: Build + validate (with retry loop) ──────────────────────────────
 
 echo ""
-RESUME_PDF="${DOCUMENTS_DIR}/Jerrison Li Resume - ${COMPANY_PROPER}.pdf"
-RESUME_DOCX="${DOCUMENTS_DIR}/Jerrison Li Resume - ${COMPANY_PROPER}.docx"
-CL_DOCX="${DOCUMENTS_DIR}/Jerrison Li Cover Letter - ${COMPANY_PROPER}.docx"
+RESUME_PDF="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Resume - ${COMPANY_PROPER}.pdf"
+RESUME_DOCX="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Resume - ${COMPANY_PROPER}.docx"
+CL_DOCX="${DOCUMENTS_DIR}/${CANDIDATE_NAME} Cover Letter - ${COMPANY_PROPER}.docx"
 
 if python3 "$ASSET_STATE_SCRIPT" can-reuse-build "$OUT_DIR" "$COMPANY_PROPER" >/dev/null 2>&1; then
     _progress "reuse_docs" 90 "Step 3: Reusing existing documents"
@@ -408,7 +409,7 @@ echo "  Provider:     ${PROVIDER}"
 echo "  Resume:       ${RESUME_DOCX}"
 echo "  Resume PDF:   ${RESUME_PDF}"
 echo "  Cover Letter: ${CL_DOCX}"
-echo "  Cover Letter: ${DOCUMENTS_DIR}/Jerrison Li Cover Letter - ${COMPANY_PROPER}.pdf"
+echo "  Cover Letter: ${DOCUMENTS_DIR}/${CANDIDATE_NAME} Cover Letter - ${COMPANY_PROPER}.pdf"
 echo ""
 echo "  Content:      ${CONTENT_DIR}/resume_content.json"
 echo "  CL Text:      ${CONTENT_DIR}/cover_letter_text.txt"

@@ -579,8 +579,8 @@ def test_load_pipeline_meta_corrects_workday_careers_wrapper_company_from_saved_
 def test_validate_draft_completeness_accepts_active_submit_proof(tmp_path):
     docs_dir = tmp_path / "documents"
     docs_dir.mkdir()
-    (docs_dir / "Jerrison Resume.pdf").write_text("pdf", encoding="utf-8")
-    (docs_dir / "Jerrison Cover Letter.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Resume.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Cover Letter.pdf").write_text("pdf", encoding="utf-8")
     (tmp_path / "draft_summary.png").write_text("png", encoding="utf-8")
 
     active_submit = tmp_path / "submit-20260326T010203Z"
@@ -597,8 +597,8 @@ def test_validate_draft_completeness_accepts_active_submit_proof(tmp_path):
 def test_validate_draft_completeness_requires_screenshot_from_active_submit_attempt(tmp_path):
     docs_dir = tmp_path / "documents"
     docs_dir.mkdir()
-    (docs_dir / "Jerrison Resume.pdf").write_text("pdf", encoding="utf-8")
-    (docs_dir / "Jerrison Cover Letter.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Resume.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Cover Letter.pdf").write_text("pdf", encoding="utf-8")
     (tmp_path / "draft_summary.png").write_text("png", encoding="utf-8")
 
     stale_submit = tmp_path / "submit"
@@ -619,8 +619,8 @@ def test_validate_draft_completeness_requires_screenshot_from_active_submit_atte
 def test_validate_draft_completeness_requires_review_screenshot_when_claimed_by_payload(tmp_path):
     docs_dir = tmp_path / "documents"
     docs_dir.mkdir()
-    (docs_dir / "Jerrison Resume.pdf").write_text("pdf", encoding="utf-8")
-    (docs_dir / "Jerrison Cover Letter.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Resume.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Cover Letter.pdf").write_text("pdf", encoding="utf-8")
     (tmp_path / "draft_summary.png").write_text("png", encoding="utf-8")
 
     active_submit = tmp_path / "submit-20260326T010203Z"
@@ -647,8 +647,8 @@ def test_validate_draft_completeness_requires_review_screenshot_when_claimed_by_
 def test_validate_draft_completeness_allows_greenhouse_active_submit_without_review_screenshot(tmp_path):
     docs_dir = tmp_path / "documents"
     docs_dir.mkdir()
-    (docs_dir / "Jerrison Resume.pdf").write_text("pdf", encoding="utf-8")
-    (docs_dir / "Jerrison Cover Letter.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Resume.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Cover Letter.pdf").write_text("pdf", encoding="utf-8")
     (tmp_path / "draft_summary.png").write_text("png", encoding="utf-8")
 
     active_submit = tmp_path / "submit-20260326T010203Z"
@@ -665,8 +665,8 @@ def test_validate_draft_completeness_allows_greenhouse_active_submit_without_rev
 def test_validate_draft_completeness_rejects_reused_review_screenshot_checkpoint(tmp_path):
     docs_dir = tmp_path / "documents"
     docs_dir.mkdir()
-    (docs_dir / "Jerrison Resume.pdf").write_text("pdf", encoding="utf-8")
-    (docs_dir / "Jerrison Cover Letter.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Resume.pdf").write_text("pdf", encoding="utf-8")
+    (docs_dir / "Candidate Cover Letter.pdf").write_text("pdf", encoding="utf-8")
     (tmp_path / "draft_summary.png").write_text("png", encoding="utf-8")
 
     active_submit = tmp_path / "submit-20260326T010203Z"

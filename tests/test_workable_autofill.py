@@ -92,7 +92,7 @@ class WorkableAutofillTests(unittest.TestCase):
                 "label": "Website",
                 "kind": "text",
                 "required": False,
-                "value": "https://jerrisonli.com",
+                "value": "https://candidate.example.com",
                 "source": "master_resume.md",
             },
             {
@@ -100,7 +100,7 @@ class WorkableAutofillTests(unittest.TestCase):
                 "label": "Cover letter",
                 "kind": "file",
                 "required": False,
-                "file_path": "/tmp/Jerrison Li Cover Letter - Workable.pdf",
+                "file_path": "/tmp/Candidate Name Cover Letter - Workable.pdf",
                 "source": "existing_cover_letter_asset",
             },
         ]
@@ -110,17 +110,17 @@ class WorkableAutofillTests(unittest.TestCase):
             {"label": "Cover letter", "kind": "textarea", "required": False},
         ]
         profile = SimpleNamespace(
-            first_name="Jerrison",
-            last_name="Li",
-            email="jerrisonli@gmail.com",
-            phone="510-613-5192",
-            website="https://jerrisonli.com",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
+            first_name="Candidate",
+            last_name="Name",
+            email="candidate@example.com",
+            phone="555-0100",
+            website="https://candidate.example.com",
+            linkedin="https://linkedin.com/in/candidate/",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
-            website="https://jerrisonli.com",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
+            website="https://candidate.example.com",
+            linkedin="https://linkedin.com/in/candidate/",
         )
         generated_answer = "I want to help Blueprint turn an ambitious health vision into a product system that learns quickly from real users."
 
@@ -145,7 +145,7 @@ class WorkableAutofillTests(unittest.TestCase):
         website_step = next(step for step in reconciled_steps if step["field_name"] == "website")
         self.assertEqual(website_step["label"], links_label)
         self.assertEqual(website_step["kind"], "textarea")
-        self.assertEqual(website_step["value"], "https://jerrisonli.com")
+        self.assertEqual(website_step["value"], "https://candidate.example.com")
 
         cover_letter_step = next(step for step in reconciled_steps if step["field_name"] == "cover_letter")
         self.assertEqual(cover_letter_step["kind"], "textarea")
@@ -246,8 +246,8 @@ class WorkableAutofillTests(unittest.TestCase):
             page = browser.new_page()
             page.set_content(html)
 
-            self.assertTrue(autofill._fill_text_field(page, "Phone", "510-613-5192"))
+            self.assertTrue(autofill._fill_text_field(page, "Phone", "555-0100"))
             self.assertEqual(page.locator("#country-code").input_value(), "+1")
-            self.assertEqual(page.locator("#phone-number").input_value(), "510-613-5192")
+            self.assertEqual(page.locator("#phone-number").input_value(), "555-0100")
 
             browser.close()

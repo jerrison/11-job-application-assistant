@@ -142,7 +142,7 @@ class AnswerVerifierTests(unittest.TestCase):
                 out_dir=out_dir,
                 meta={"board": "ashby", "company": "Acme"},
                 question_specs=[spec],
-                answers={"preferred_name": "Jerrison"},
+                answers={"preferred_name": "Candidate"},
                 application_profile=application_profile,
                 deterministic_field_names={"preferred_name"},
             )

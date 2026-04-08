@@ -50,7 +50,7 @@ class AnswerVerificationBackfillTests(unittest.TestCase):
                             },
                         ],
                         "answers": {
-                            "preferred_name": "Jerrison",
+                            "preferred_name": "Candidate",
                             "why_company": "Because the mission and product surface align with my background.",
                         },
                     }
@@ -95,7 +95,7 @@ class AnswerVerificationBackfillTests(unittest.TestCase):
         self.assertEqual(
             kwargs["answers"],
             {
-                "preferred_name": "Jerrison",
+                "preferred_name": "Candidate",
                 "why_company": "Because the mission and product surface align with my background.",
             },
         )

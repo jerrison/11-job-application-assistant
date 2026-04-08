@@ -22,21 +22,22 @@ class ReductoAutofillTests(unittest.TestCase):
         autofill = load_module("autofill_reducto", "scripts/autofill_reducto.py")
 
         profile = SimpleNamespace(
-            first_name="Jerrison",
-            last_name="Li",
-            email="jerrisonli@gmail.com",
-            phone="510-613-5192",
+            first_name="Candidate",
+            last_name="Name",
+            full_name="Candidate Name",
+            email="candidate@example.com",
+            phone="415-555-0100",
             linkedin="https://www.linkedin.com/in/stale-profile/",
         )
         application_profile = SimpleNamespace(
             pronouns="He / Him / His",
-            linkedin="https://www.linkedin.com/in/jerrison/",
-            verification_code_email="jerrisonli@gmail.com",
+            linkedin="https://linkedin.com/in/candidate/",
+            verification_code_email="candidate@example.com",
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             out_dir = Path(tmpdir)
-            resume_path = out_dir / "Jerrison Li Resume - Reducto.pdf"
+            resume_path = out_dir / "Candidate Name Resume - Reducto.pdf"
             resume_path.write_text("resume", encoding="utf-8")
 
             with (
@@ -59,8 +60,8 @@ class ReductoAutofillTests(unittest.TestCase):
 
         steps = {step["field_name"]: step for step in payload["steps"]}
 
-        self.assertEqual(steps["phone"]["value"], "15106135192")
-        self.assertEqual(steps["linkedin"]["value"], "https://www.linkedin.com/in/jerrison/")
+        self.assertEqual(steps["phone"]["value"], "14155550100")
+        self.assertEqual(steps["linkedin"]["value"], "https://linkedin.com/in/candidate/")
         self.assertEqual(steps["linkedin"]["source"], "application_profile.md")
         self.assertEqual(steps["worked_at_startup"]["value"], "Yes")
         self.assertEqual(steps["require_sponsorship"]["value"], "No")

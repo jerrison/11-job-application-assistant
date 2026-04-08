@@ -15,7 +15,10 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from app_paths import env_file_paths, materials_root
 from llm_provider import automation_provider_chain, default_active_provider, effective_provider_settings
+from material_ingest import import_material_content
 from project_env import ENV_LINE_RE, parse_env_file
+from runtime_policy import ensure_action_allowed
+from runtime_trace import emit_trace
 
 MATERIAL_FILES = {
     "master_resume": "master_resume.md",
@@ -221,6 +224,11 @@ def load_settings(*, environ: Mapping[str, str] | None = None) -> dict:
 
 def save_settings(payload: Mapping[str, object], *, environ: MutableMapping[str, str] | None = None) -> dict:
     target_env = environ if environ is not None else os.environ
+    ensure_action_allowed(
+        "settings_save",
+        metadata={"surface": "shared_settings"},
+        environ=target_env,
+    )
 
     materials_payload = payload.get("materials") or {}
     if not isinstance(materials_payload, Mapping):
@@ -271,4 +279,69 @@ def save_settings(payload: Mapping[str, object], *, environ: MutableMapping[str,
         _upsert_env_local(managed_updates, environ=target_env)
         _apply_env_updates(target_env, managed_updates)
 
+    emit_trace(
+        "settings_saved",
+        action="settings_save",
+        metadata={
+            "surface": "shared_settings",
+            "material_keys": sorted(str(key) for key in materials_payload),
+            "provider_keys": sorted(str(key) for key in providers_payload),
+            "credential_keys": sorted(str(key) for key in credentials_payload),
+        },
+        environ=target_env,
+    )
     return load_settings(environ=target_env)
+
+
+def import_material(
+    material_key: str,
+    *,
+    text: str | None = None,
+    source_url: str | None = None,
+    file_name: str | None = None,
+    content_type: str | None = None,
+    content_bytes: bytes | None = None,
+    environ: MutableMapping[str, str] | None = None,
+) -> dict:
+    if material_key not in MATERIAL_FILES:
+        raise ValueError(f"Unsupported material key: {material_key}")
+    target_env = environ if environ is not None else os.environ
+    ensure_action_allowed(
+        "material_import",
+        metadata={"surface": "shared_settings", "material_key": material_key},
+        environ=target_env,
+    )
+
+    imported_text = import_material_content(
+        text=text,
+        source_url=source_url,
+        file_name=file_name,
+        content_type=content_type,
+        content_bytes=content_bytes,
+    )
+    settings = save_settings({"materials": {material_key: imported_text}}, environ=target_env)
+    emit_trace(
+        "material_imported",
+        action="material_import",
+        metadata={
+            "surface": "shared_settings",
+            "material_key": material_key,
+            "source_kind": (
+                "text"
+                if text is not None
+                else "url"
+                if source_url is not None
+                else "file"
+                if content_bytes is not None
+                else "unknown"
+            ),
+            "file_name": file_name or "",
+        },
+        environ=target_env,
+    )
+    return {
+        "material_key": material_key,
+        "text": imported_text,
+        "settings": settings,
+        "bootstrap": load_bootstrap(environ=target_env),
+    }

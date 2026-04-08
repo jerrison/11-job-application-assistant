@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,6 +23,18 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
     def setUp(self):
         self.mod = load_module("application_submit_common", "scripts/application_submit_common.py")
 
+    def test_module_paths_follow_runtime_home_override(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_root = Path(tmpdir) / "runtime-home"
+            with mock.patch.dict(os.environ, {"JOB_ASSETS_APP_HOME": str(runtime_root)}, clear=True):
+                mod = load_module("application_submit_common_runtime_home", "scripts/application_submit_common.py")
+
+            self.assertEqual(mod.JOBS_DB_PATH, runtime_root / "jobs.db")
+            self.assertEqual(mod.MASTER_RESUME_PATH, runtime_root / "master_resume.md")
+            self.assertEqual(mod.WORK_STORIES_PATH, runtime_root / "work_stories.md")
+            self.assertEqual(mod.CANDIDATE_CONTEXT_PATH, runtime_root / "candidate_context.md")
+            self.assertEqual(mod.APPLICATION_PROFILE_PATH, runtime_root / "application_profile.md")
+
     def test_find_resume_file_prefers_canonical_company_named_asset(self):
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp)
@@ -31,12 +44,12 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
                 '{"company_proper": "Cresta", "jd_url": "https://linkedin.com/jobs/view/1/"}',
                 encoding="utf-8",
             )
-            (docs_dir / "Jerrison Li Resume - Cresta.pdf").write_bytes(b"%PDF-canonical")
-            (docs_dir / "Jerrison Li Resume - Cresta..pdf").write_bytes(b"%PDF-stale")
+            (docs_dir / "Candidate Name Resume - Cresta.pdf").write_bytes(b"%PDF-canonical")
+            (docs_dir / "Candidate Name Resume - Cresta..pdf").write_bytes(b"%PDF-stale")
 
             resolved = self.mod.find_resume_file(out_dir)
 
-            self.assertEqual(resolved.name, "Jerrison Li Resume - Cresta.pdf")
+            self.assertEqual(resolved.name, "Candidate Name Resume - Cresta.pdf")
 
     def test_find_cover_letter_file_prefers_canonical_company_named_asset(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -47,12 +60,12 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
                 '{"company_proper": "Cresta", "jd_url": "https://linkedin.com/jobs/view/1/"}',
                 encoding="utf-8",
             )
-            (docs_dir / "Jerrison Li Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical")
-            (docs_dir / "Jerrison Li Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale")
+            (docs_dir / "Candidate Name Cover Letter - Cresta.pdf").write_bytes(b"%PDF-canonical")
+            (docs_dir / "Candidate Name Cover Letter - Cresta..pdf").write_bytes(b"%PDF-stale")
 
             resolved = self.mod.find_cover_letter_file(out_dir)
 
-            self.assertEqual(resolved.name, "Jerrison Li Cover Letter - Cresta.pdf")
+            self.assertEqual(resolved.name, "Candidate Name Cover Letter - Cresta.pdf")
 
     def test_preferred_meta_job_url_ignores_unresolved_template_urls(self):
         resolved = self.mod.preferred_meta_job_url(
@@ -1914,7 +1927,7 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
             candidate_context_path = Path(tmp) / "candidate_context.md"
             candidate_context_path.write_text(
                 (
-                    "Jerrison Li Context\n"
+                    "Candidate Name Context\n"
                     "Writing Samples:\n"
                     "1. https://example.com/sample-one\n"
                     "2. https://example.com/sample-two\n"
@@ -2046,7 +2059,7 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
             profile,
         )
 
-        self.assertEqual(answer, "Jerrison Li")
+        self.assertEqual(answer, "Candidate Name")
 
     def test_shared_text_answer_returns_full_name_for_legal_first_and_last_name_prompt(self):
         profile = self.mod.parse_application_profile(
@@ -2058,7 +2071,7 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
             profile,
         )
 
-        self.assertEqual(answer, "Jerrison Li")
+        self.assertEqual(answer, "Candidate Name")
 
     def test_shared_text_answer_returns_candidate_email_for_confirm_email_prompt(self):
         profile = self.mod.parse_application_profile(
@@ -2070,7 +2083,7 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
             profile,
         )
 
-        self.assertEqual(answer, "jerrisonli@gmail.com")
+        self.assertEqual(answer, "candidate@example.com")
 
     def test_shared_text_answer_returns_live_application_date_for_today_prompt(self):
         profile = self.mod.parse_application_profile(

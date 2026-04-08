@@ -6,7 +6,6 @@ import json
 import logging
 import re
 import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from answer_verification_state import load_answer_verification_state
 from application_submit_common import load_pending_user_input_for_submit_attempt, resolve_current_submit_artifacts
 from output_layout import ANSWER_VERIFICATION_JSON
 from pipeline_draft_proof import draft_review_state
+from runtime_entrypoints import python_script_command
 
 logger = logging.getLogger(__name__)
 
@@ -386,7 +386,7 @@ def generate_draft_summary(
     script = Path(__file__).resolve().parent / "build_draft_summary.py"
     try:
         proc = subprocess.run(
-            [sys.executable, str(script), str(summary_path), "-o", str(png_path)],
+            python_script_command(script, str(summary_path), "-o", str(png_path)),
             capture_output=True,
             text=True,
             timeout=30,

@@ -22,13 +22,16 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app_paths import app_home, display_path
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
-    PROJECT_ROOT,
+    JOBS_DB_PATH,
+    MASTER_RESUME_PATH,
     build_email_confirmation_watcher,
     build_truthful_work_authorization_answer,
     find_cover_letter_file,
@@ -1477,7 +1480,7 @@ def _fill_my_experience(page, out_dir: Path) -> list[dict]:
     # Fill empty "Role Description" textareas from master_resume.md
     # Phenom's resume parser fills basic info (company, title, dates)
     # but often leaves role descriptions empty.
-    resume_text = (PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8")
+    resume_text = MASTER_RESUME_PATH.read_text(encoding="utf-8")
 
     # Parse work experience sections: ## COMPANY — Title\n* bullet\n* bullet
     exp_blocks: list[dict] = []
@@ -2417,13 +2420,17 @@ def _resolve_phenom_url(meta: dict, out_dir: Path) -> str:
     # Fall back to jobs.db board_url
     import sqlite3
 
-    db_path = PROJECT_ROOT / "jobs.db"
+    db_path = JOBS_DB_PATH
     if db_path.exists():
         try:
+            try:
+                relative_out_dir = out_dir.relative_to(app_home())
+            except ValueError:
+                relative_out_dir = out_dir
             conn = sqlite3.connect(str(db_path))
             row = conn.execute(
                 "SELECT board_url, url FROM jobs WHERE output_dir = ? OR output_dir = ? LIMIT 1",
-                (str(out_dir), str(out_dir.relative_to(PROJECT_ROOT))),
+                (str(out_dir), str(relative_out_dir)),
             ).fetchone()
             conn.close()
             if row:
@@ -2441,7 +2448,7 @@ def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     """Build the autofill payload for a Phenom application."""
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     job_url = _resolve_phenom_url(meta, out_dir)
@@ -2503,7 +2510,7 @@ def _run_phenom_browser(payload_path: Path, headless: bool, submit: bool) -> int
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     out_dir = Path(payload["out_dir"])
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     page_screenshots_dir = Path(payload["artifacts"]["page_screenshots_dir"])
@@ -2653,7 +2660,7 @@ def _run_phenom_browser(payload_path: Path, headless: bool, submit: bool) -> int
 
                     if not submit:
                         print(
-                            f"Phenom: filled application for review: {pre_submit_path.relative_to(PROJECT_ROOT)}",
+                            f"Phenom: filled application for review: {display_path(pre_submit_path)}",
                             file=sys.stderr,
                         )
                         return 0
@@ -2816,8 +2823,8 @@ def _run_phenom_browser(payload_path: Path, headless: bool, submit: bool) -> int
                     _capture(page, debug_png)
                     print(
                         f"Phenom submit did not reach confirmed state. "
-                        f"See {debug_html.relative_to(PROJECT_ROOT)} and "
-                        f"{debug_png.relative_to(PROJECT_ROOT)}.",
+                        f"See {display_path(debug_html)} and "
+                        f"{display_path(debug_png)}.",
                         file=sys.stderr,
                     )
                     return 1
