@@ -4,9 +4,16 @@
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from app_paths import code_root, material_path, output_root, tmp_root
+from candidate_runtime import load_candidate_runtime_profile
 from pypdf import PdfReader
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
@@ -18,9 +25,9 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import HRFlowable, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
-INPUT_MD = Path("master_resume.md")
-OUTPUT_PDF = Path("output/pdf/master_resume.pdf")
-TMP_FIT_PDF = Path("tmp/pdfs/master_resume_fit_check.pdf")
+INPUT_MD = material_path("master_resume.md")
+OUTPUT_PDF = output_root() / "pdf" / "master_resume.pdf"
+TMP_FIT_PDF = tmp_root() / "pdfs" / "master_resume_fit_check.pdf"
 MAX_PAGES = 2
 
 MONTH_TOKEN_RE = re.compile(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b")
@@ -62,11 +69,12 @@ def escape_html(value: str) -> str:
 
 
 def register_fonts() -> FontSet:
+    bundled_assets_root = code_root() / "assets" / "fonts"
     carlito_paths = {
-        "regular": Path("assets/fonts/Carlito-Regular.ttf"),
-        "bold": Path("assets/fonts/Carlito-Bold.ttf"),
-        "italic": Path("assets/fonts/Carlito-Italic.ttf"),
-        "bold_italic": Path("assets/fonts/Carlito-BoldItalic.ttf"),
+        "regular": bundled_assets_root / "Carlito-Regular.ttf",
+        "bold": bundled_assets_root / "Carlito-Bold.ttf",
+        "italic": bundled_assets_root / "Carlito-Italic.ttf",
+        "bold_italic": bundled_assets_root / "Carlito-BoldItalic.ttf",
     }
     if all(path.exists() for path in carlito_paths.values()):
         pdfmetrics.registerFont(TTFont("ResumeCarlito", str(carlito_paths["regular"])))
@@ -479,6 +487,7 @@ def hard_min_bullets(role_index: int) -> int:
 
 def render_pdf(model: ResumeModel, bullet_limits: dict[int, int], output_path: Path, fonts: FontSet) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    candidate_profile = load_candidate_runtime_profile()
     doc = SimpleDocTemplate(
         str(output_path),
         pagesize=letter,
@@ -487,7 +496,7 @@ def render_pdf(model: ResumeModel, bullet_limits: dict[int, int], output_path: P
         topMargin=0.42 * inch,
         bottomMargin=0.42 * inch,
         title="Master Resume",
-        author="Jerrison Li",
+        author=candidate_profile.full_name,
     )
     doc.build(build_story(model, bullet_limits, fonts))
 

@@ -254,7 +254,7 @@ class AshbyAutofillTests(unittest.TestCase):
 
     def test_infer_step_handles_required_identity_and_location_fields(self):
         autofill = load_module("autofill_ashby", "scripts/autofill_ashby.py")
-        profile = SimpleNamespace(first_name="Jerrison")
+        profile = SimpleNamespace(first_name="Candidate")
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
             country="United States",
@@ -305,7 +305,7 @@ class AshbyAutofillTests(unittest.TestCase):
             generated_answers={},
         )
 
-        self.assertEqual(preferred_name["value"], "Jerrison")
+        self.assertEqual(preferred_name["value"], "Candidate")
         self.assertEqual(city["kind"], "location")
         self.assertEqual(city["value"], "San Francisco, CA")
         self.assertEqual(hybrid["kind"], "choice")
@@ -322,14 +322,14 @@ class AshbyAutofillTests(unittest.TestCase):
                 "field_type": "Email",
             },
             meta={},
-            profile=SimpleNamespace(email="jerrisonli@gmail.com"),
+            profile=SimpleNamespace(email="candidate@example.com"),
             application_profile=SimpleNamespace(),
             out_dir=PROJECT_ROOT,
             generated_answers={},
         )
         self.assertIsNotNone(step)
         self.assertEqual(step["kind"], "text")
-        self.assertEqual(step["value"], "jerrisonli@gmail.com")
+        self.assertEqual(step["value"], "candidate@example.com")
 
     def test_infer_step_prefers_company_website_for_how_did_you_hear_when_metadata_is_direct(self):
         autofill = load_module("autofill_ashby", "scripts/autofill_ashby.py")
@@ -830,14 +830,14 @@ class AshbyAutofillTests(unittest.TestCase):
             },
             meta={},
             profile=SimpleNamespace(linkedin=None),
-            application_profile=SimpleNamespace(linkedin="https://www.linkedin.com/in/jerrison/"),
+            application_profile=SimpleNamespace(linkedin="https://linkedin.com/in/candidate/"),
             out_dir=PROJECT_ROOT,
             generated_answers={},
         )
 
         self.assertIsNotNone(step)
         self.assertEqual(step["kind"], "text")
-        self.assertEqual(step["value"], "https://www.linkedin.com/in/jerrison/")
+        self.assertEqual(step["value"], "https://linkedin.com/in/candidate/")
         self.assertEqual(step["source"], "application_profile.md")
         self.assertEqual(step["profile_field"], "linkedin")
 
@@ -963,8 +963,8 @@ class AshbyAutofillTests(unittest.TestCase):
                     "field_type": "File",
                 },
                 meta={},
-                profile=SimpleNamespace(website="https://jerrison.li", employers=set()),
-                application_profile=SimpleNamespace(website="https://jerrison.li"),
+                profile=SimpleNamespace(website="https://candidate.example.com", employers=set()),
+                application_profile=SimpleNamespace(website="https://candidate.example.com"),
                 out_dir=PROJECT_ROOT,
                 generated_answers={},
             )
@@ -986,12 +986,12 @@ class AshbyAutofillTests(unittest.TestCase):
             },
             meta={},
             profile=SimpleNamespace(linkedin=None, website=None),
-            application_profile=SimpleNamespace(github="https://github.com/jerrison"),
+            application_profile=SimpleNamespace(github="https://github.com/candidate"),
             out_dir=PROJECT_ROOT,
             generated_answers={},
         )
 
-        self.assertEqual(step["value"], "https://github.com/jerrison")
+        self.assertEqual(step["value"], "https://github.com/candidate")
         self.assertEqual(step["source"], "application_profile.md")
 
     def test_build_payload_writes_pending_user_input_and_aborts_for_specialized_prompt(self):
@@ -1134,12 +1134,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                     ),
                 ),
                 mock.patch.object(
@@ -1147,9 +1147,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1220,12 +1220,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1234,9 +1234,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1321,12 +1321,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1335,9 +1335,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1420,12 +1420,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1434,9 +1434,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1517,12 +1517,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1531,9 +1531,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1668,12 +1668,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1682,9 +1682,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1754,12 +1754,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1768,9 +1768,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1834,12 +1834,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1848,9 +1848,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -1921,12 +1921,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -1935,9 +1935,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -2022,12 +2022,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers=set(),
                     ),
                 ),
@@ -2036,9 +2036,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -2134,12 +2134,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers={"moody's analytics", "kyte", "allstate"},
                     ),
                 ),
@@ -2148,9 +2148,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -2249,12 +2249,12 @@ class AshbyAutofillTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        full_name="Jerrison Li",
-                        first_name="Jerrison",
-                        email="jerrisonli@gmail.com",
+                        full_name="Candidate Name",
+                        first_name="Candidate",
+                        email="candidate@example.com",
                         phone="555-555-5555",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         employers={"moody's analytics", "kyte", "t-mobile"},
                     ),
                 ),
@@ -2263,9 +2263,9 @@ class AshbyAutofillTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         verification_code_email="",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        github="https://github.com/jerrison",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        github="https://github.com/candidate",
+                        website="https://candidate.example.com",
                         location="San Francisco, CA",
                         country="United States",
                         text_message_consent=False,
@@ -2319,7 +2319,7 @@ class AshbyAutofillTests(unittest.TestCase):
                         "field_name": "first_name",
                         "label": "First Name",
                         "kind": "text",
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "source": "master_resume.md",
                         "required": True,
                         "filled": True,
@@ -2328,7 +2328,7 @@ class AshbyAutofillTests(unittest.TestCase):
                         "field_name": "cover_letter",
                         "label": "Cover Letter",
                         "kind": "file",
-                        "file_path": "/tmp/Jerrison Li Cover Letter - Stand.pdf",
+                        "file_path": "/tmp/Candidate Name Cover Letter - Stand.pdf",
                         "source": "existing_cover_letter_asset",
                         "required": True,
                     },
@@ -2676,14 +2676,14 @@ class AshbyAutofillTests(unittest.TestCase):
                 "field_type": "Phone",
             },
             meta={},
-            profile=SimpleNamespace(phone="510-613-5192"),
+            profile=SimpleNamespace(phone="555-0100"),
             application_profile=SimpleNamespace(text_message_consent=False),
             out_dir=PROJECT_ROOT,
             generated_answers={},
         )
 
         self.assertEqual(step["kind"], "text")
-        self.assertEqual(step["value"], "510-613-5192")
+        self.assertEqual(step["value"], "555-0100")
         self.assertFalse(step["text_message_consent"])
         self.assertTrue(step["blocks_draft_completion"])
         self.assertEqual(step["blocker_kind"], "visible_profile_field")
@@ -3627,7 +3627,7 @@ class AshbyAutofillTests(unittest.TestCase):
             "path": "candidate_phone",
             "kind": "text",
             "field_type": "Phone",
-            "value": "510-613-5192",
+            "value": "555-0100",
             "text_message_consent": False,
         }
 
@@ -3647,7 +3647,7 @@ class AshbyAutofillTests(unittest.TestCase):
         ):
             autofill._fill_step(page, step)
 
-        fill_text.assert_called_once_with(locator, "510-613-5192", field_type="Phone")
+        fill_text.assert_called_once_with(locator, "555-0100", field_type="Phone")
         fill_consent.assert_called_once_with(entry, False)
         self.assertTrue(step["filled"])
 

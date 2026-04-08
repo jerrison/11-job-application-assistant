@@ -25,9 +25,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from app_paths import display_path
 from application_submit_common import (
     APPLICATION_ANSWER_CACHE,
     APPLICATION_PROFILE_PATH,
+    MASTER_RESUME_PATH,
     PROJECT_ROOT,
     GeneratedAnswerBlockersError,
     build_email_confirmation_watcher,
@@ -639,7 +641,7 @@ def _write_workday_auth_result(out_dir: Path, result: dict[str, object]) -> None
     submit_dir.mkdir(parents=True, exist_ok=True)
     log_path = submit_dir / WORKDAY_AUTH_RESULT_JSON
     log_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"Workday auth details: {log_path.relative_to(PROJECT_ROOT)}", file=sys.stderr)
+    print(f"Workday auth details: {display_path(log_path)}", file=sys.stderr)
 
     submission_result = {
         "status": result.get("status"),
@@ -2896,7 +2898,7 @@ def _is_application_page(page) -> bool:
         return False
 
     # Positive check: the logged-in user is visible in the header
-    if page.locator("button:has-text('jerrisonli@gmail.com'), button:has-text('Settings')").count() > 0:
+    if page.locator("button:has-text('@'), button:has-text('Settings')").count() > 0:
         # And an active h2 heading for a form step exists
         main = page.locator("main")
         if main.count():
@@ -4258,7 +4260,7 @@ def _handle_workday_review_boundary(
 
     if not submit:
         print(
-            f"Workday: filled application for review: {pre_submit_path.relative_to(PROJECT_ROOT)}",
+            f"Workday: filled application for review: {display_path(pre_submit_path)}",
             file=sys.stderr,
         )
         return 0
@@ -4350,7 +4352,7 @@ def _handle_workday_review_boundary(
     _capture(page, debug_png)
     print(
         f"Workday submit did not reach confirmed state. "
-        f"See {debug_html.relative_to(PROJECT_ROOT)} and {debug_png.relative_to(PROJECT_ROOT)}.",
+        f"See {display_path(debug_html)} and {display_path(debug_png)}.",
         file=sys.stderr,
     )
     return 1
@@ -5017,7 +5019,7 @@ def _fill_my_experience(page, out_dir: Path) -> list[dict]:
                 pass
 
     try:
-        resume_lines = _load_workday_resume_lines(PROJECT_ROOT / "master_resume.md")
+        resume_lines = _load_workday_resume_lines(MASTER_RESUME_PATH)
     except FileNotFoundError:
         resume_lines = []
     try:
@@ -5777,6 +5779,11 @@ def _select_workday_follow_up_work_authorization_status_option(
         "can work for any employer",
         "authorized to work in the country",
         "authorised to work in the country",
+        "authorized to work permanently",
+        "authorised to work permanently",
+        "permanent work authorization",
+        "permanent work authorisation",
+        "work permanently in the country",
         "do not require sponsorship",
         "do not need sponsorship",
         "no sponsorship",
@@ -5813,7 +5820,7 @@ def _select_workday_follow_up_work_authorization_status_option(
 
     support_texts: list[str] = []
     try:
-        support_texts.append((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+        support_texts.append(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     except OSError:
         pass
     work_auth_statement = str(getattr(application_profile, "work_authorization_statement", "") or "").strip()
@@ -6462,7 +6469,7 @@ def _write_workday_review_artifacts(payload: dict, *, filled_steps: list[dict], 
 def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     job_url = str(meta.get("jd_source_resolved") or meta["jd_source"])
@@ -6546,7 +6553,7 @@ def _run_workday_browser(payload_path: Path, headless: bool, submit: bool) -> in
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     out_dir = Path(payload["out_dir"])
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     email, password = _workday_credentials()
     _clear_workday_failure_artifacts(payload)
@@ -6711,7 +6718,7 @@ def _run_workday_browser(payload_path: Path, headless: bool, submit: bool) -> in
                             exc.blockers,
                         )
                         print(
-                            f"Workday: generated answers require manual review. See {pending_path.relative_to(PROJECT_ROOT)}.",
+                            f"Workday: generated answers require manual review. See {display_path(pending_path)}.",
                             file=sys.stderr,
                         )
                         return 0

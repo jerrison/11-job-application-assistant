@@ -121,12 +121,12 @@ class RipplingAutofillTests(unittest.TestCase):
 
     def _profile(self, **overrides):
         base = {
-            "first_name": "Jerrison",
-            "last_name": "Li",
-            "email": "jerrisonli@gmail.com",
-            "phone": "510-613-5192",
+            "first_name": "Candidate",
+            "last_name": "Name",
+            "email": "candidate@example.com",
+            "phone": "555-0100",
             "linkedin": "https://www.linkedin.com/in/stale-profile/",
-            "website": "https://jerrisonli.com",
+            "website": "https://candidate.example.com",
         }
         base.update(overrides)
         return SimpleNamespace(**base)
@@ -134,9 +134,9 @@ class RipplingAutofillTests(unittest.TestCase):
     def _application_profile(self, **overrides):
         base = {
             "location": "San Francisco, CA",
-            "verification_code_email": "jerrisonli@gmail.com",
-            "linkedin": "https://www.linkedin.com/in/jerrison/",
-            "website": "https://jerrisonli.com",
+            "verification_code_email": "candidate@example.com",
+            "linkedin": "https://linkedin.com/in/candidate/",
+            "website": "https://candidate.example.com",
             "pronouns": "He / Him / His",
             "text_message_consent": False,
             "comfortable_with_posted_salary": True,
@@ -174,7 +174,7 @@ class RipplingAutofillTests(unittest.TestCase):
             mock.patch.object(
                 autofill,
                 "parse_master_resume",
-                return_value=self._profile(linkedin="https://www.linkedin.com/in/jerrisonli/"),
+                return_value=self._profile(linkedin="https://linkedin.com/in/candidate/"),
             ),
             mock.patch.object(
                 autofill,
@@ -224,7 +224,7 @@ class RipplingAutofillTests(unittest.TestCase):
             payload = autofill._build_payload(out_dir, provider="openai")
 
         linkedin_step = next(step for step in payload["steps"] if step["field_name"] == "linkedin")
-        self.assertEqual(linkedin_step["value"], "https://www.linkedin.com/in/jerrison/")
+        self.assertEqual(linkedin_step["value"], "https://linkedin.com/in/candidate/")
         self.assertEqual(linkedin_step["source"], "application_profile.md")
 
     def test_build_payload_uses_live_additional_questions_and_omits_absent_linkedin(self):

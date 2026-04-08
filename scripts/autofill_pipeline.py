@@ -14,9 +14,10 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
+PROJECT_ROOT = SCRIPT_DIR.parent
 
+from app_paths import display_path
 from application_submit_common import (
-    PROJECT_ROOT,
     build_email_confirmation_watcher,
     clear_pending_user_input,
     default_answer_provider,
@@ -267,7 +268,7 @@ def _handle_pre_form_terminal_state(
         print(
             f"{board_title} captcha required before the application form rendered. "
             f"{manual_challenge['message']} "
-            f"See {debug_html.relative_to(PROJECT_ROOT)} and {debug_png.relative_to(PROJECT_ROOT)}.",
+            f"See {display_path(debug_html)} and {display_path(debug_png)}.",
             file=sys.stderr,
         )
         return CAPTCHA_SKIP_EXIT_CODE
@@ -288,7 +289,7 @@ def _handle_pre_form_terminal_state(
         )
         print(
             f"{board_title} did not reach the application form. {job_closed['message']} "
-            f"See {debug_html.relative_to(PROJECT_ROOT)} and {debug_png.relative_to(PROJECT_ROOT)}.",
+            f"See {display_path(debug_html)} and {display_path(debug_png)}.",
             file=sys.stderr,
         )
         return 1
@@ -311,7 +312,7 @@ def _handle_pre_form_terminal_state(
     )
     print(
         f"{board_title} did not reach the application form. {service_unavailable['message']} "
-        f"See {debug_html.relative_to(PROJECT_ROOT)} and {debug_png.relative_to(PROJECT_ROOT)}.",
+        f"See {display_path(debug_html)} and {display_path(debug_png)}.",
         file=sys.stderr,
     )
     return 1
@@ -397,7 +398,7 @@ def autofill_main(
     payload_path = role_submit_path(out_dir, constants["payload_json"])
     payload_path.parent.mkdir(parents=True, exist_ok=True)
     payload_path.write_text(json_dumps_pretty(payload) + "\n", encoding="utf-8")
-    print(f"Wrote {payload_path.relative_to(PROJECT_ROOT)}")
+    print(f"Wrote {display_path(payload_path)}")
 
     if args.payload_only:
         return 0
@@ -721,7 +722,7 @@ def run_browser_pipeline(
             if pending_path is not None:
                 print(
                     f"{board_title} autofill left planned fields unconfirmed. "
-                    f"See {pending_path.relative_to(PROJECT_ROOT)} before submitting.",
+                    f"See {display_path(pending_path)} before submitting.",
                     file=sys.stderr,
                 )
                 if submit:
@@ -730,7 +731,7 @@ def run_browser_pipeline(
                 clear_pending_user_input(out_dir)
 
             if not submit:
-                print(f"Filled {board_title} application for review: {pre_submit_path.relative_to(PROJECT_ROOT)}")
+                print(f"Filled {board_title} application for review: {display_path(pre_submit_path)}")
                 if browser.session_viewer_url:
                     print(f"{board_title} Steel session viewer: {browser.session_viewer_url}")
                 return 0
@@ -948,7 +949,7 @@ def run_browser_pipeline(
                 return CAPTCHA_SKIP_EXIT_CODE
             print(
                 f"{board_title} submit did not reach a confirmed completion state: {state['status']}. "
-                f"See {debug_html.relative_to(PROJECT_ROOT)} and {debug_png.relative_to(PROJECT_ROOT)}.",
+                f"See {display_path(debug_html)} and {display_path(debug_png)}.",
                 file=sys.stderr,
             )
             return 1

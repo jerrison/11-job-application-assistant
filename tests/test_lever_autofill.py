@@ -43,7 +43,7 @@ class LeverAutofillTests(unittest.TestCase):
                         "field_name": "name",
                         "label": "Full name",
                         "kind": "text",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                         "required": True,
                         "filled": True,
@@ -52,7 +52,7 @@ class LeverAutofillTests(unittest.TestCase):
                         "field_name": "cover_letter",
                         "label": "Cover Letter",
                         "kind": "file",
-                        "file_path": "/tmp/Jerrison Li Cover Letter - WeRide.pdf",
+                        "file_path": "/tmp/Candidate Name Cover Letter - WeRide.pdf",
                         "source": "existing_cover_letter_asset",
                         "required": False,
                     },
@@ -136,11 +136,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "org",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -180,11 +180,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             comfortable_with_posted_salary=False,
@@ -195,7 +195,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -221,17 +221,17 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "phone",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             authorized_to_work_unconditionally=True,
             require_sponsorship_now=False,
             require_sponsorship_future=False,
@@ -263,11 +263,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "cards[field5]",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -277,7 +277,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -306,11 +306,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             transgender_status="No",
@@ -321,7 +321,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -347,11 +347,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "onsite_start_location",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -361,7 +361,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         with mock.patch.object(
@@ -395,11 +395,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "homeowners_experience",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -409,7 +409,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -434,11 +434,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "cards[career][field0]",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -448,7 +448,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -478,11 +478,11 @@ class LeverAutofillTests(unittest.TestCase):
                 field,
                 meta={},
                 profile=SimpleNamespace(
-                    full_name="Jerrison Li",
-                    email="jerrisonli@gmail.com",
+                    full_name="Candidate Name",
+                    email="candidate@example.com",
                     phone="555-555-5555",
-                    linkedin="https://www.linkedin.com/in/jerrisonli/",
-                    website="https://jerrison.li",
+                    linkedin="https://linkedin.com/in/candidate/",
+                    website="https://candidate.example.com",
                 ),
                 application_profile=SimpleNamespace(
                     require_sponsorship_now=False,
@@ -490,9 +490,9 @@ class LeverAutofillTests(unittest.TestCase):
                     authorized_to_work_unconditionally=True,
                     minimum_years_experience=True,
                     location="San Francisco, CA",
-                    linkedin="https://www.linkedin.com/in/jerrisonli/",
-                    website="https://jerrison.li",
-                    github="https://github.com/jerrison",
+                    linkedin="https://linkedin.com/in/candidate/",
+                    website="https://candidate.example.com",
+                    github="https://github.com/candidate",
                 ),
                 out_dir=PROJECT_ROOT,
                 generated_answers={},
@@ -1015,11 +1015,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -1065,11 +1065,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -1112,11 +1112,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "Yes", "No", "Prefer not to say"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -1126,7 +1126,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1154,11 +1154,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Man", "Woman"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             gender="Male",
@@ -1170,7 +1170,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1198,11 +1198,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -1214,7 +1214,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1242,11 +1242,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             country="United States",
@@ -1257,7 +1257,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1285,11 +1285,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             country="United States",
@@ -1300,7 +1300,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1328,11 +1328,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No", "I'm already in California"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             country="United States",
@@ -1343,7 +1343,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1370,11 +1370,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "cards[abc][field4]",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             country="United States",
@@ -1385,7 +1385,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -1473,7 +1473,7 @@ class LeverAutofillTests(unittest.TestCase):
         )
         self.assertEqual([step["field_name"] for step in payload["steps"]], ["full_name", "linkedin_url", "github_url"])
         github_step = next(step for step in payload["steps"] if step["field_name"] == "github_url")
-        self.assertEqual(github_step["value"], "https://github.com/jerrison")
+        self.assertEqual(github_step["value"], "https://github.com/candidate")
         self.assertEqual(github_step["source"], "application_profile.md")
         self.assertNotIn("review_screenshot", payload["artifacts"])
         self.assertIn("pre_submit_screenshot", payload["artifacts"])
@@ -1518,7 +1518,7 @@ class LeverAutofillTests(unittest.TestCase):
 
             def _fake_generate_application_answers(*, question_specs, **kwargs):
                 captured_specs["question_specs"] = question_specs
-                return {ai_field_name: "JERRISON"}
+                return {ai_field_name: "CANDIDATE"}
 
             with (
                 mock.patch.object(autofill, "migrate_role_output_layout"),
@@ -1545,7 +1545,7 @@ class LeverAutofillTests(unittest.TestCase):
             "classified custom text field should be sent through shared answer generation",
         )
         ai_step = next(step for step in payload["steps"] if step["field_name"] == ai_field_name)
-        self.assertEqual(ai_step["value"], "JERRISON")
+        self.assertEqual(ai_step["value"], "CANDIDATE")
         self.assertEqual(ai_step["source"], "generated_application_answer")
         self.assertEqual(payload["unknown_questions"], [])
 
@@ -2036,11 +2036,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "San Jose, California", "Los Angeles, California"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -2050,7 +2050,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2078,11 +2078,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "Menlo Park, CA", "Durham, NC"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -2092,7 +2092,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2120,11 +2120,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "San Francisco, CA", "New York City, NY"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
@@ -2134,7 +2134,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2162,11 +2162,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Select...", "United States", "Argentina", "Brazil", "Canada"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             country="United States",
@@ -2178,7 +2178,7 @@ class LeverAutofillTests(unittest.TestCase):
             minimum_years_experience=True,
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2206,11 +2206,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             authorized_to_work_unconditionally=True,
@@ -2220,7 +2220,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2254,11 +2254,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             authorized_to_work_unconditionally=True,
@@ -2268,7 +2268,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2298,17 +2298,17 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["I Acknowledge"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             gender="Male",
             race_or_ethnicity="Hispanic or Latino",
             veteran_status="I am not a veteran",
@@ -2405,11 +2405,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "cards[compensation]",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2419,7 +2419,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2450,11 +2450,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2464,7 +2464,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2492,11 +2492,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes, Veeva Systems can contact me about future job opportunities for up to 2 years Privacy policy"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2506,7 +2506,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             how_did_you_hear="Corporate website",
         )
 
@@ -2535,11 +2535,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["Yes", "No"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2549,7 +2549,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             how_did_you_hear="Corporate website",
         )
 
@@ -2582,11 +2582,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2596,7 +2596,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             how_did_you_hear="Corporate website",
         )
 
@@ -2625,11 +2625,11 @@ class LeverAutofillTests(unittest.TestCase):
             "options": ["LinkedIn", "Indeed", "Other Job Board", "Corporate website", "Other"],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2639,7 +2639,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             how_did_you_hear="Corporate website",
         )
 
@@ -2672,11 +2672,11 @@ class LeverAutofillTests(unittest.TestCase):
             "name": "cards[pronouns]",
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             pronouns="He / Him / His",
@@ -2687,7 +2687,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2726,11 +2726,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             age_range="35 - 44",
@@ -2741,7 +2741,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2777,11 +2777,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             age_range="35 - 44",
@@ -2792,7 +2792,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(
@@ -2828,11 +2828,11 @@ class LeverAutofillTests(unittest.TestCase):
             ],
         }
         profile = SimpleNamespace(
-            full_name="Jerrison Li",
-            email="jerrisonli@gmail.com",
+            full_name="Candidate Name",
+            email="candidate@example.com",
             phone="555-555-5555",
-            linkedin="https://www.linkedin.com/in/jerrisonli/",
-            website="https://jerrison.li",
+            linkedin="https://linkedin.com/in/candidate/",
+            website="https://candidate.example.com",
         )
         application_profile = SimpleNamespace(
             require_sponsorship_now=False,
@@ -2842,7 +2842,7 @@ class LeverAutofillTests(unittest.TestCase):
             location="San Francisco, CA",
             linkedin=profile.linkedin,
             website=profile.website,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
         )
 
         step = autofill._infer_step(

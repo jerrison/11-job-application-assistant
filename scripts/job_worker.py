@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app_paths import jobs_db_path, worker_commands_path, worker_pid_path, worker_state_path
 from job_board_urls import (
     looks_like_breezy_url,
     looks_like_jazzhr_url,
@@ -45,9 +46,9 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 PROJECT_ROOT = SCRIPT_DIR.parent
-PID_FILE = PROJECT_ROOT / "jobs.db.worker.pid"
-STATE_FILE = PROJECT_ROOT / "jobs.db.worker_state.json"
-COMMANDS_FILE = PROJECT_ROOT / "jobs.db.worker_commands.json"
+PID_FILE = worker_pid_path()
+STATE_FILE = worker_state_path()
+COMMANDS_FILE = worker_commands_path()
 
 log = logging.getLogger(__name__)
 
@@ -817,7 +818,7 @@ def main() -> None:
         format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
     )
 
-    db_path = PROJECT_ROOT / "jobs.db"
+    db_path = jobs_db_path()
 
     # Kill any stale worker processes before starting (prevents accumulation)
     _kill_stale_workers(os.getpid())
@@ -840,12 +841,12 @@ def main() -> None:
         if pool is not None:
             pool.stop()
         if supervisor_enabled and supervisor_started_here:
-            stop_repair_supervisor(project_root=PROJECT_ROOT)
+            stop_repair_supervisor(project_root=PROJECT_ROOT, environ=os.environ)
         PID_FILE.unlink(missing_ok=True)
 
     try:
         if supervisor_enabled:
-            supervisor_started_here = ensure_repair_supervisor_running(project_root=PROJECT_ROOT)
+            supervisor_started_here = ensure_repair_supervisor_running(project_root=PROJECT_ROOT, environ=os.environ)
         pool = WorkerPool(db_path, num_workers=args.workers, headless=_headless, headless_explicit=_headless_explicit)
         pool.start()
     except Exception:

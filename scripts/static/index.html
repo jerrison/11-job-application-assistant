@@ -517,7 +517,7 @@
         <div class="settings-onboarding-card">
           <div class="settings-onboarding-copy">
             <div class="settings-title">Onboarding</div>
-            <div class="settings-desc" id="settings-onboarding-status">Checking your local setup.</div>
+            <div class="settings-desc" id="settings-onboarding-status">Checking your local setup. Import `.txt`, `.md`, or `.docx` files, or paste public Google Drive/Docs links.</div>
             <div class="settings-onboarding-checklist">
               <div class="settings-check-item" id="settings-onboarding-master-resume">Master resume required.</div>
               <div class="settings-check-item" id="settings-onboarding-provider-credentials">Add at least one provider credential.</div>
@@ -646,10 +646,10 @@
             <div class="settings-path" id="settings-master-resume-path"></div>
           </div>
           <div class="settings-import-bar">
-            <input class="settings-input" id="settings-master-resume-import-url" type="url" placeholder="Paste a public resume URL">
+            <input class="settings-input" id="settings-master-resume-import-url" type="url" placeholder="Paste a public Google Drive or Docs link">
             <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('master_resume')">Import URL</button>
             <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-master-resume-import-file">Upload file</label>
-            <input class="settings-upload-input" id="settings-master-resume-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('master_resume', this)">
+            <input class="settings-upload-input" id="settings-master-resume-import-file" type="file" accept=".md,.txt,.docx" onchange="importMaterialFromFile('master_resume', this)">
           </div>
           <textarea class="settings-editor" id="settings-master-resume" spellcheck="false"></textarea>
         </div>
@@ -663,10 +663,10 @@
             <div class="settings-path" id="settings-work-stories-path"></div>
           </div>
           <div class="settings-import-bar">
-            <input class="settings-input" id="settings-work-stories-import-url" type="url" placeholder="Paste a public work stories URL">
+            <input class="settings-input" id="settings-work-stories-import-url" type="url" placeholder="Paste a public Google Drive or Docs link">
             <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('work_stories')">Import URL</button>
             <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-work-stories-import-file">Upload file</label>
-            <input class="settings-upload-input" id="settings-work-stories-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('work_stories', this)">
+            <input class="settings-upload-input" id="settings-work-stories-import-file" type="file" accept=".md,.txt,.docx" onchange="importMaterialFromFile('work_stories', this)">
           </div>
           <textarea class="settings-editor" id="settings-work-stories" spellcheck="false"></textarea>
         </div>
@@ -680,10 +680,10 @@
             <div class="settings-path" id="settings-candidate-context-path"></div>
           </div>
           <div class="settings-import-bar">
-            <input class="settings-input" id="settings-candidate-context-import-url" type="url" placeholder="Paste a public candidate context URL">
+            <input class="settings-input" id="settings-candidate-context-import-url" type="url" placeholder="Paste a public Google Drive or Docs link">
             <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('candidate_context')">Import URL</button>
             <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-candidate-context-import-file">Upload file</label>
-            <input class="settings-upload-input" id="settings-candidate-context-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('candidate_context', this)">
+            <input class="settings-upload-input" id="settings-candidate-context-import-file" type="file" accept=".md,.txt,.docx" onchange="importMaterialFromFile('candidate_context', this)">
           </div>
           <textarea class="settings-editor" id="settings-candidate-context" spellcheck="false"></textarea>
         </div>
@@ -697,10 +697,10 @@
             <div class="settings-path" id="settings-application-profile-path"></div>
           </div>
           <div class="settings-import-bar">
-            <input class="settings-input" id="settings-application-profile-import-url" type="url" placeholder="Paste a public application profile URL">
+            <input class="settings-input" id="settings-application-profile-import-url" type="url" placeholder="Paste a public Google Drive or Docs link">
             <button type="button" class="btn btn-sm btn-outline" onclick="importMaterialFromUrl('application_profile')">Import URL</button>
             <label class="btn btn-sm btn-outline settings-upload-btn" for="settings-application-profile-import-file">Upload file</label>
-            <input class="settings-upload-input" id="settings-application-profile-import-file" type="file" accept=".md,.txt,.docx,.pdf" onchange="importMaterialFromFile('application_profile', this)">
+            <input class="settings-upload-input" id="settings-application-profile-import-file" type="file" accept=".md,.txt,.docx" onchange="importMaterialFromFile('application_profile', this)">
             <button type="button" class="btn btn-sm btn-outline" onclick="fillStarterApplicationProfile()">Starter template</button>
           </div>
           <textarea class="settings-editor" id="settings-application-profile" spellcheck="false"></textarea>

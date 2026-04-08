@@ -40,9 +40,9 @@ class SmartRecruitersPayloadTests(unittest.TestCase):
                     autofill,
                     "parse_master_resume",
                     return_value=SimpleNamespace(
-                        first_name="Jerrison",
-                        last_name="Li",
-                        email="jerrisonli@gmail.com",
+                        first_name="Candidate",
+                        last_name="Name",
+                        email="candidate@example.com",
                         phone="555-555-5555",
                         location="San Francisco, CA",
                     ),
@@ -52,8 +52,8 @@ class SmartRecruitersPayloadTests(unittest.TestCase):
                     "parse_application_profile",
                     return_value=SimpleNamespace(
                         location="San Francisco, CA",
-                        linkedin="https://www.linkedin.com/in/jerrisonli/",
-                        website="https://jerrison.li",
+                        linkedin="https://linkedin.com/in/candidate/",
+                        website="https://candidate.example.com",
                         gender="Male",
                         gender_identity="Cisgender Male/Man",
                         race_or_ethnicity="Hispanic or Latino",
@@ -71,8 +71,8 @@ class SmartRecruitersPayloadTests(unittest.TestCase):
         website_step = next(step for step in payload["steps"] if step["field_name"] == "website")
         gender_step = next(step for step in payload["steps"] if step["field_name"] == "gender")
         veteran_step = next(step for step in payload["steps"] if step["field_name"] == "veteran_status")
-        self.assertEqual(linkedin_step["value"], "https://www.linkedin.com/in/jerrisonli/")
-        self.assertEqual(website_step["value"], "https://jerrison.li")
+        self.assertEqual(linkedin_step["value"], "https://linkedin.com/in/candidate/")
+        self.assertEqual(website_step["value"], "https://candidate.example.com")
         self.assertEqual(gender_step["value"], "Cisgender Male/Man")
         self.assertEqual(gender_step["profile_field"], "gender_identity")
         self.assertTrue(gender_step["blocks_draft_completion"])

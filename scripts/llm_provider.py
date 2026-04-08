@@ -13,6 +13,8 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
+from runtime_entrypoints import python_script_command
+
 try:
     import tomllib
 except ImportError:  # pragma: no cover
@@ -446,7 +448,7 @@ def provider_command(
         explicit_reasoning_effort = _clean(env.get("CODEX_REASONING_EFFORT")) is not None
         explicit_approval_policy = _clean(env.get("CODEX_APPROVAL_POLICY")) is not None
         explicit_sandbox_mode = _clean(env.get("CODEX_SANDBOX_MODE")) is not None
-        cmd = [sys.executable, str(CODEX_EXEC_WRAPPER)]
+        cmd = python_script_command(CODEX_EXEC_WRAPPER, environ=env)
         cmd.append("--")
         cmd.append("codex")
         if search_enabled:
@@ -499,7 +501,7 @@ def provider_command(
         return cmd
 
     if provider == "openai":
-        cmd = [sys.executable, str(OPENAI_PROVIDER_SCRIPT)]
+        cmd = python_script_command(OPENAI_PROVIDER_SCRIPT, environ=env)
         cmd.extend(["--model", settings["model"]])
         if settings["reasoning_effort"]:
             cmd.extend(["--reasoning-effort", settings["reasoning_effort"]])

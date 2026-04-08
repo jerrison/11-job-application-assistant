@@ -35,7 +35,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                     },
                     {
@@ -82,7 +82,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "generated_application_answer",
                     },
                 ],
@@ -171,7 +171,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                     }
                 ],
@@ -384,7 +384,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                     }
                 ],
@@ -490,7 +490,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                     }
                 ],
@@ -502,7 +502,7 @@ class DraftSummaryTests(unittest.TestCase):
 
             md = (out_dir / "draft_summary.md").read_text()
             self.assertIn("Full Name", md)
-            self.assertIn("Jerrison Li", md)
+            self.assertIn("Candidate Name", md)
 
     def test_generate_draft_summary_creates_png(self):
         """generate_draft_summary() should also produce a PNG via subprocess."""
@@ -522,7 +522,7 @@ class DraftSummaryTests(unittest.TestCase):
                         "kind": "text",
                         "required": True,
                         "status": "filled",
-                        "value": "Jerrison Li",
+                        "value": "Candidate Name",
                         "source": "master_resume.md",
                     },
                 ],
@@ -587,7 +587,7 @@ class DraftDiffTests(unittest.TestCase):
     def test_no_changes_returns_empty(self):
         from draft_manager import classify_draft_edits
 
-        text = "### 1. Name (app_name)\n- **Answer:** Jerrison\n- **Status:** filled"
+        text = "### 1. Name (app_name)\n- **Answer:** Candidate\n- **Status:** filled"
         changes = classify_draft_edits(text, text)
         self.assertEqual(changes, [])
 
@@ -821,7 +821,7 @@ class DraftSummaryPngTests(unittest.TestCase):
                 "## Application Answers\n\n"
                 "### 1. Full Name (app_name)\n"
                 "- **Kind:** text | **Required:** yes | **Source:** master_resume.md\n"
-                "- **Answer:** Jerrison Li\n"
+                "- **Answer:** Candidate Name\n"
                 "- **Status:** filled\n\n"
                 "### 2. Pronouns (survey_pronouns)\n"
                 "- **Kind:** choice | **Required:** no | **Source:** —\n"
@@ -851,7 +851,7 @@ class DraftSummaryPngTests(unittest.TestCase):
                 "## Application Answers\n\n"
                 "### 1. Name (app_name)\n"
                 "- **Kind:** text | **Required:** yes | **Source:** master_resume.md\n"
-                "- **Answer:** Jerrison\n"
+                "- **Answer:** Candidate\n"
                 "- **Status:** filled\n"
             )
             out_path = Path(tmp) / "draft_summary.png"
@@ -908,7 +908,7 @@ class DraftSummaryPngTests(unittest.TestCase):
                 "## Application Answers\n\n"
                 "### 1. Full Name (app_name)\n"
                 "- **Kind:** text | **Required:** yes | **Source:** generated_application_answer\n"
-                "- **Answer:** Jerrison Li\n"
+                "- **Answer:** Candidate Name\n"
                 "- **Status:** filled\n"
             )
             out_path = Path(tmp) / "draft_summary.png"

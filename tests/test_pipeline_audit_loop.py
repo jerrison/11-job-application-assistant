@@ -102,8 +102,8 @@ def test_audit_draft_outcome_fails_closed_when_current_proof_artifacts_are_missi
     submit_dir.mkdir(parents=True)
     docs_dir.mkdir(parents=True)
     (submit_dir / "greenhouse_autofill_payload.json").write_text("{}", encoding="utf-8")
-    (docs_dir / "Jerrison Li Resume - Example.pdf").write_text("resume", encoding="utf-8")
-    (docs_dir / "Jerrison Li Cover Letter - Example.pdf").write_text("cover", encoding="utf-8")
+    (docs_dir / "Candidate Name Resume - Example.pdf").write_text("resume", encoding="utf-8")
+    (docs_dir / "Candidate Name Cover Letter - Example.pdf").write_text("cover", encoding="utf-8")
     (out_dir / "draft_summary.png").write_text("png", encoding="utf-8")
 
     decision = audit_draft_outcome(out_dir, board_name="greenhouse")

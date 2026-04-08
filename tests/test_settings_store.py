@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -116,6 +117,54 @@ class SettingsStoreTests(unittest.TestCase):
             self.assertEqual(environ["STEEL_LOCAL"], "true")
             self.assertTrue(settings["credentials"]["openai_api_key"]["configured"])
             self.assertTrue(settings["credentials"]["steel_api_key"]["configured"])
+
+    def test_save_settings_emits_redacted_runtime_trace(self):
+        settings_store = load_module("settings_store", "scripts/settings_store.py")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_root = Path(tmpdir)
+            environ = {"JOB_ASSETS_APP_HOME": str(runtime_root)}
+
+            settings_store.save_settings(
+                {
+                    "materials": {
+                        "master_resume": "# Updated Resume\n",
+                    },
+                    "credentials": {
+                        "openai_api_key": "sk-live-12345678",
+                    },
+                },
+                environ=environ,
+            )
+
+            trace_lines = (runtime_root / "traces" / "runtime-trace.jsonl").read_text(encoding="utf-8").splitlines()
+            trace_payloads = [json.loads(line) for line in trace_lines]
+
+        self.assertTrue(any(payload["event_type"] == "settings_saved" for payload in trace_payloads))
+        self.assertTrue(any(payload["action"] == "settings_save" for payload in trace_payloads))
+        self.assertFalse(any("sk-live-12345678" in line for line in trace_lines))
+
+    def test_import_material_persists_content_and_returns_bootstrap(self):
+        settings_store = load_module("settings_store", "scripts/settings_store.py")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_root = Path(tmpdir)
+            environ = {
+                "JOB_ASSETS_APP_HOME": str(runtime_root),
+                "OPENAI_API_KEY": "sk-test-12345678",
+            }
+
+            payload = settings_store.import_material(
+                "master_resume",
+                text="# Imported Resume\n",
+                environ=environ,
+            )
+
+        self.assertEqual(payload["material_key"], "master_resume")
+        self.assertEqual(payload["text"], "# Imported Resume\n")
+        self.assertEqual(payload["settings"]["materials"]["master_resume"]["content"], "# Imported Resume\n")
+        self.assertTrue(payload["bootstrap"]["onboarding"]["required_materials"]["master_resume"])
+        self.assertTrue(payload["bootstrap"]["onboarding"]["credentials_ready"])
 
 
 if __name__ == "__main__":

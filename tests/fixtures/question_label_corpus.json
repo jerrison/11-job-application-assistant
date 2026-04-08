@@ -5965,17 +5965,17 @@
     "board": "greenhouse"
   },
   {
-    "label": "first name last name email phone country 1 phone resume cv jerrison li resume di",
+    "label": "first name last name email phone country 1 phone resume cv candidate li resume di",
     "expected_category": null,
     "board": "greenhouse"
   },
   {
-    "label": "first name last name email phone country 1 phone resume cv jerrison li resume ne",
+    "label": "first name last name email phone country 1 phone resume cv candidate li resume ne",
     "expected_category": null,
     "board": "greenhouse"
   },
   {
-    "label": "first name last name email phone country 1 phone resume cv jerrison li resume st",
+    "label": "first name last name email phone country 1 phone resume cv candidate li resume st",
     "expected_category": null,
     "board": "greenhouse"
   },

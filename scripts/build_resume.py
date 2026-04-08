@@ -39,6 +39,7 @@ import time
 from pathlib import Path
 
 import json_lenient
+from candidate_runtime import load_candidate_runtime_profile
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
@@ -86,14 +87,6 @@ SPACING_LINE = 1.0
 BULLET_MARGIN_LEFT = Pt(27)
 BULLET_PADDING_LEFT = Pt(-9)  # Used via hanging indent
 BULLET_CHAR = "\u2022   "  # • followed by 3 nbsp (matching Google Doc: \002022 + 3 spaces)
-
-# ─── Fixed content (never changes) ────────────────────────────────────────────
-
-CANDIDATE_NAME = "JERRISON LI"
-CANDIDATE_CONTACT_WITH_LOCATION = (
-    "San Francisco, CA  |  jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com"
-)
-CANDIDATE_CONTACT_NO_LOCATION = "jerrisonli@gmail.com  |  510-613-5192  |  linkedin.com/in/jerrison/  |  jerrisonli.com"
 
 POSITIONS_META = {
     "moodys": {
@@ -264,14 +257,20 @@ def _is_california_role(job_location: str | None) -> bool:
     return any(token in lowered for token in CALIFORNIA_CITY_TOKENS)
 
 
-def _candidate_contact_for_input(input_path: str | os.PathLike[str] | None) -> str:
+def _candidate_contact_for_input(
+    input_path: str | os.PathLike[str] | None,
+    *,
+    candidate_profile=None,
+) -> str:
     """Use the city-prefixed contact line only for California roles."""
+    if candidate_profile is None:
+        candidate_profile = load_candidate_runtime_profile()
     job_location = _load_job_location(input_path)
     if job_location is None:
-        return CANDIDATE_CONTACT_WITH_LOCATION
+        return candidate_profile.contact_line(include_location=True)
     if _is_california_role(job_location):
-        return CANDIDATE_CONTACT_WITH_LOCATION
-    return CANDIDATE_CONTACT_NO_LOCATION
+        return candidate_profile.contact_line(include_location=True)
+    return candidate_profile.contact_line(include_location=False)
 
 
 def _estimate_wrapped_lines(text: str, chars_per_line: int) -> int:
@@ -385,7 +384,8 @@ def choose_page_break(data: dict, contact_line: str | None = None) -> tuple[str 
         diagnostics["reason"] = "Only one populated position block."
         return data.get("page_break_before"), diagnostics
 
-    static_page1 = _estimate_static_page1_height(data, contact_line or CANDIDATE_CONTACT_WITH_LOCATION)
+    default_contact = load_candidate_runtime_profile().contact_line(include_location=True)
+    static_page1 = _estimate_static_page1_height(data, contact_line or default_contact)
     static_page2 = _estimate_education_skills_height()
     position_heights = {
         pos_id: _estimate_position_height(POSITIONS_META[pos_id], data["positions"][pos_id])
@@ -517,7 +517,8 @@ def build_resume(
 ):
     """Build the resume .docx from structured content data."""
     doc = Document()
-    contact_line = _candidate_contact_for_input(input_path)
+    candidate_profile = load_candidate_runtime_profile()
+    contact_line = _candidate_contact_for_input(input_path, candidate_profile=candidate_profile)
 
     # ── Page setup ──
     section = doc.sections[0]
@@ -541,7 +542,7 @@ def build_resume(
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_spacing(p, before=Pt(0), after=Pt(3))
-    _run(p, CANDIDATE_NAME, SIZE_NAME, bold=True)
+    _run(p, candidate_profile.full_name_upper, SIZE_NAME, bold=True)
 
     # ── Tagline (10.5pt, color #444, centered) ──
     p = doc.add_paragraph()
@@ -717,17 +718,17 @@ def _validate_pdf(pdf_path: str) -> bool:
         all_passed = False
 
     # Check candidate name in text
-    if "JERRISON LI" in text:
-        print("PASS: 'JERRISON LI' found in PDF text")
+    if "CANDIDATE NAME" in text:
+        print("PASS: 'CANDIDATE NAME' found in PDF text")
     else:
-        print("FAIL: 'JERRISON LI' not found in PDF text")
+        print("FAIL: 'CANDIDATE NAME' not found in PDF text")
         all_passed = False
 
     if not all_passed:
         print("\nRemediation guidance:")
         if page_count != 2:
             print("  - Adjust bullet content, then re-run scripts/optimize_page_break.py before rebuilding.")
-        if "JERRISON LI" not in text:
+        if "CANDIDATE NAME" not in text:
             print("  - Check that the name renders correctly; font embedding may be broken.")
 
     return all_passed

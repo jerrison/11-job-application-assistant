@@ -50,13 +50,13 @@ def test_build_payload_marks_board_jazzhr(tmp_path):
             autofill,
             "parse_master_resume",
             return_value=SimpleNamespace(
-                first_name="Jerrison",
-                last_name="Li",
-                email="jerrison@example.com",
+                first_name="Candidate",
+                last_name="Name",
+                email="candidate@example.com",
                 phone="555-555-5555",
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrisonli/",
-                website="https://jerrison.li",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
             ),
         ),
         mock.patch.object(
@@ -64,8 +64,8 @@ def test_build_payload_marks_board_jazzhr(tmp_path):
             "parse_application_profile",
             return_value=SimpleNamespace(
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrisonli/",
-                website="https://jerrison.li",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
                 verification_code_email=None,
             ),
         ),
@@ -191,7 +191,7 @@ def test_sync_live_fields_updates_standard_steps_and_records_required_unknown_qu
             {
                 "out_dir": str(out_dir),
                 "steps": [
-                    {"field_name": "first_name", "label": "First name", "kind": "text", "required": True, "value": "Jerrison"},
+                    {"field_name": "first_name", "label": "First name", "kind": "text", "required": True, "value": "Candidate"},
                     {"field_name": "work_authorization", "label": "Work authorization", "kind": "select", "required": False, "value": "Yes"},
                 ],
                 "unknown_questions": [],
@@ -234,13 +234,13 @@ def test_sync_live_fields_updates_standard_steps_and_records_required_unknown_qu
             autofill,
             "parse_master_resume",
             return_value=SimpleNamespace(
-                first_name="Jerrison",
-                last_name="Li",
-                email="jerrison@example.com",
+                first_name="Candidate",
+                last_name="Name",
+                email="candidate@example.com",
                 phone="555-555-5555",
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrison/",
-                website="https://jerrisonli.com",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
             ),
         ),
         mock.patch.object(
@@ -248,8 +248,8 @@ def test_sync_live_fields_updates_standard_steps_and_records_required_unknown_qu
             "parse_application_profile",
             return_value=SimpleNamespace(
                 location="San Francisco, CA",
-                linkedin="https://www.linkedin.com/in/jerrison/",
-                website="https://jerrisonli.com",
+                linkedin="https://linkedin.com/in/candidate/",
+                website="https://candidate.example.com",
                 verification_code_email=None,
             ),
         ),
@@ -262,7 +262,7 @@ def test_sync_live_fields_updates_standard_steps_and_records_required_unknown_qu
         autofill._sync_live_fields(_Page(), payload_path)
 
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
-    first_name_step = next(step for step in payload["steps"] if step["value"] == "Jerrison")
+    first_name_step = next(step for step in payload["steps"] if step["value"] == "Candidate")
     assert first_name_step["field_name"] == "resumator-firstname-value"
     work_auth_step = next(step for step in payload["steps"] if step["field_name"] == "resumator-questionnaire[1]")
     assert work_auth_step["value"] == "Yes"

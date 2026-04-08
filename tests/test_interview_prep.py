@@ -12,7 +12,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent.parent / "scripts"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from scripts.generate_interview_prep import _run_provider
+from scripts.generate_interview_prep import _build_prompt, _run_provider
 
 
 @pytest.fixture()
@@ -23,6 +23,34 @@ def prep_dir(tmp_path: Path) -> Path:
 
 
 DUMMY_PROMPT = "test prompt"
+
+
+def test_build_prompt_reads_system_prompt_from_code_root_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prompt_root = tmp_path / "scripts" / "prompts"
+    prompt_root.mkdir(parents=True)
+    (prompt_root / "interview_prep_system.md").write_text("Custom interview prep system prompt", encoding="utf-8")
+    monkeypatch.setenv("JOB_ASSETS_CODE_ROOT", str(tmp_path))
+
+    prompt = _build_prompt(
+        {
+            "jd_title": "Staff Product Manager",
+            "company": "Acme",
+            "jd_source": "https://example.com/jobs/123",
+            "jd_raw": "Job description",
+            "jd_parsed": "{}",
+            "research_cache": "{}",
+            "master_resume": "# Resume",
+            "work_stories": "# Stories",
+            "candidate_context": "# Context",
+            "application_profile": "# Profile",
+        },
+        tmp_path / "interview_prep",
+        "Phone Screen",
+        [],
+        "",
+    )
+
+    assert prompt.startswith("<system>\nCustom interview prep system prompt\n</system>")
 
 
 # ---------------------------------------------------------------------------

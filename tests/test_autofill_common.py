@@ -1123,7 +1123,7 @@ class WriteReportTests(unittest.TestCase):
                     {
                         "name": "resume_upload",
                         "status": "verified_fresh_upload",
-                        "expected_file": "Jerrison Li Resume - Acme.pdf",
+                        "expected_file": "Candidate Name Resume - Acme.pdf",
                         "message": "LinkedIn re-uploaded the current role resume.",
                     }
                 ],
@@ -1134,7 +1134,7 @@ class WriteReportTests(unittest.TestCase):
 
         self.assertEqual(saved["outcomes"][0]["status"], "verified_fresh_upload")
         self.assertIn("## Outcomes", markdown)
-        self.assertIn("Jerrison Li Resume - Acme.pdf", markdown)
+        self.assertIn("Candidate Name Resume - Acme.pdf", markdown)
 
     def test_write_report_redacts_passwords_and_prefers_report_value(self):
         common = load_module("autofill_common", "scripts/autofill_common.py")

@@ -31,7 +31,7 @@ from application_models import parse_candidate_contact_details
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
     CANDIDATE_CONTEXT_PATH,
-    PROJECT_ROOT,
+    MASTER_RESUME_PATH,
     _best_engagement_option,
     build_email_confirmation_watcher,
     find_cover_letter_file,
@@ -1699,7 +1699,7 @@ def _classify_submit_state(snapshot: dict[str, object]) -> dict[str, object]:
 def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     job_url = str(meta.get("jd_source_resolved") or meta["jd_source"])
@@ -1794,7 +1794,7 @@ def _run_avature_browser(payload_path: Path, headless: bool, submit: bool) -> in
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     out_dir = Path(payload["out_dir"])
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     email, password = _avature_credentials()
 

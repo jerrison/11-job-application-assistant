@@ -39,6 +39,7 @@ from answer_generation_support import (
 )
 from answer_refresh_state import current_answer_refresh_request_id
 from answer_verifier import verify_generated_answers
+from app_paths import app_home, jobs_db_path, material_path, output_root
 from application_models import (
     ApplicationProfile,
     CandidateProfile,
@@ -51,6 +52,7 @@ from application_models import (
     parse_bool,
     parse_master_resume,
 )
+from candidate_runtime import document_filename, load_candidate_runtime_profile
 from generated_answer_validation import (
     _generated_answer_blocker_step,
     _is_conditional_followup,
@@ -110,11 +112,12 @@ from text_normalization_helpers import (
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-JOBS_DB_PATH = PROJECT_ROOT / "jobs.db"
-MASTER_RESUME_PATH = PROJECT_ROOT / "master_resume.md"
-WORK_STORIES_PATH = PROJECT_ROOT / "work_stories.md"
-CANDIDATE_CONTEXT_PATH = PROJECT_ROOT / "candidate_context.md"
-APPLICATION_PROFILE_PATH = PROJECT_ROOT / "application_profile.md"
+JOBS_DB_PATH = jobs_db_path()
+MASTER_RESUME_PATH = material_path("master_resume.md")
+WORK_STORIES_PATH = material_path("work_stories.md")
+CANDIDATE_CONTEXT_PATH = material_path("candidate_context.md")
+APPLICATION_PROFILE_PATH = material_path("application_profile.md")
+OUTPUT_ROOT = output_root()
 APPLICATION_ANSWER_CACHE = OUTPUT_APPLICATION_ANSWER_CACHE
 APPLICATION_ANSWER_RAW = OUTPUT_APPLICATION_ANSWER_RAW
 APPLICATION_ANSWER_FALLBACK_RAW = OUTPUT_APPLICATION_ANSWER_FALLBACK_RAW
@@ -2488,7 +2491,7 @@ def find_output_dir(target: str) -> Path:
         raise FileNotFoundError(f"{candidate} is not a directory")
 
     if re.match(r"^https?://", target, re.I):
-        for meta_path in PROJECT_ROOT.glob("output/*/*/.pipeline_meta.json"):
+        for meta_path in OUTPUT_ROOT.glob("*/*/.pipeline_meta.json"):
             try:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
@@ -2505,7 +2508,7 @@ def find_output_dir(target: str) -> Path:
         # Fallback: check jobs.db for URL → output_dir mapping
         import sqlite3
 
-        db_path = PROJECT_ROOT / "jobs.db"
+        db_path = JOBS_DB_PATH
         if db_path.exists():
             try:
                 conn = sqlite3.connect(str(db_path))
@@ -2517,7 +2520,7 @@ def find_output_dir(target: str) -> Path:
                 if row and row[0]:
                     candidate_dir = Path(row[0])
                     if not candidate_dir.is_absolute():
-                        candidate_dir = PROJECT_ROOT / candidate_dir
+                        candidate_dir = app_home() / candidate_dir
                     if candidate_dir.is_dir():
                         resolved = candidate_dir.resolve()
                         migrate_role_output_layout(resolved)
@@ -2657,7 +2660,7 @@ def _preferred_document_file(out_dir: Path, label: str, extensions: tuple[str, .
         for extension in extensions:
             preferred = find_role_file(
                 out_dir,
-                f"Jerrison Li {label} - {company_name}{extension}",
+                document_filename(label, company_name, extension, master_resume_path=MASTER_RESUME_PATH),
                 bucket="documents",
             )
             if preferred is not None and preferred.exists():
@@ -3548,9 +3551,19 @@ def send_confirmation_email_reply(
         except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as exc:
             logger.warning("Failed to fetch In-Reply-To header: %s", exc)
 
+        reply_email = load_candidate_runtime_profile(MASTER_RESUME_PATH).email
+        try:
+            if APPLICATION_PROFILE_PATH.exists():
+                application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
+                reply_email = str(getattr(application_profile, "verification_code_email", "") or reply_email).strip()
+        except Exception as exc:
+            logger.warning("Failed to load application profile for confirmation reply email: %s", exc)
+        if not reply_email:
+            reply_email = "candidate@example.com"
+
         msg = MIMEMultipart("mixed")
-        msg["From"] = "jerrisonli@gmail.com"
-        msg["To"] = "jerrisonli@gmail.com"
+        msg["From"] = reply_email
+        msg["To"] = reply_email
         msg["Subject"] = subject
         if in_reply_to:
             msg["In-Reply-To"] = in_reply_to
@@ -4244,7 +4257,10 @@ def generate_application_answers(
     resume_content = load_optional_json(role_content_path(out_dir, "resume_content.json")) or load_optional_json(
         out_dir / "resume_content.json"
     )
-    research_cache = load_optional_json(PROJECT_ROOT / "output" / meta["company"] / "research_cache.json") or {}
+    company_slug = str(meta.get("company") or "").strip()
+    research_cache = {}
+    if company_slug:
+        research_cache = load_optional_json(OUTPUT_ROOT / company_slug / "research_cache.json") or {}
     role_research = load_optional_json(role_content_path(out_dir, "role_research_cache.json")) or load_optional_json(
         out_dir / "role_research_cache.json"
     )
@@ -7094,6 +7110,8 @@ def _resume_experience_blocks(
         while block_index < len(lines):
             candidate_line = lines[block_index].strip()
             if candidate_line and _MASTER_RESUME_ROLE_HEADER_RE.match(candidate_line):
+                break
+            if candidate_line in ("EDUCATION", "SKILLS", "SKILLS & ADDITIONAL"):
                 break
             if date_match is None:
                 date_match = _MASTER_RESUME_DATE_RANGE_RE.search(candidate_line)

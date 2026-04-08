@@ -372,7 +372,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             verification_code_email=None,
             how_did_you_hear=None,
             linkedin=None,
-            github="https://github.com/jerrison",
+            github="https://github.com/candidate",
             website=None,
         )
 
@@ -436,7 +436,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
                         "kind": "file",
                         "source": "existing_cover_letter_asset",
                         "required": True,
-                        "value": "/tmp/Jerrison Li Cover Letter - Company.pdf",
+                        "value": "/tmp/Candidate Name Cover Letter - Company.pdf",
                         "status": "planned",
                     },
                     {
@@ -445,7 +445,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
                         "kind": "text",
                         "source": "master_resume.md",
                         "required": True,
-                        "value": "Jerrison",
+                        "value": "Candidate",
                         "status": "filled",
                     },
                 ],
@@ -461,7 +461,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
         self.assertEqual(payload["board"], "greenhouse")
         self.assertEqual(len(payload["questions"]), 1)
         self.assertEqual(payload["questions"][0]["field_name"], "cover_letter")
-        self.assertEqual(payload["questions"][0]["planned_value"], "/tmp/Jerrison Li Cover Letter - Company.pdf")
+        self.assertEqual(payload["questions"][0]["planned_value"], "/tmp/Candidate Name Cover Letter - Company.pdf")
         self.assertEqual(payload["artifacts"]["report_json"], "/tmp/greenhouse_autofill_report.json")
 
     def test_load_pending_user_input_for_submit_attempt_uses_active_submit_dir_and_freshness(self):
@@ -806,13 +806,13 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             - Veteran Status: I am not a protected veteran
             - Disability Status: No, I do not have a disability and have not had one in the past
             - Sexual Orientation: Straight / Heterosexual
-            - GitHub: https://github.com/jerrison
+            - GitHub: https://github.com/candidate
             """
         )
 
         self.assertFalse(profile.text_message_consent)
         self.assertEqual(profile.transgender_status, "No")
-        self.assertEqual(profile.github, "https://github.com/jerrison")
+        self.assertEqual(profile.github, "https://github.com/candidate")
 
     def test_parse_application_profile_exposes_compensation_and_undergraduate_gpa(self):
         common = load_module("application_submit_common", "scripts/application_submit_common.py")
@@ -907,7 +907,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             - Veteran Status: I am not a protected veteran
             - Disability Status: No, I do not have a disability and have not had one in the past
             - Sexual Orientation: Straight / Heterosexual
-            - Website: https://jerrison.li
+            - Website: https://candidate.example.com
             """
         )
         specs = [
@@ -921,7 +921,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
 
         validated = common.validate_generated_answers(specs, {}, application_profile=application_profile)
 
-        self.assertEqual(validated["preferred_name"], "Jerrison")
+        self.assertEqual(validated["preferred_name"], "Candidate")
 
     def test_shared_validator_leaves_explicit_platform_profile_url_blank_without_matching_profile(self):
         common = load_module("application_submit_common", "scripts/application_submit_common.py")
@@ -941,7 +941,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             - Veteran Status: I am not a protected veteran
             - Disability Status: No, I do not have a disability and have not had one in the past
             - Sexual Orientation: Straight / Heterosexual
-            - Website: https://jerrison.li
+            - Website: https://candidate.example.com
             """
         )
         specs = [
@@ -975,8 +975,8 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             - Veteran Status: I am not a protected veteran
             - Disability Status: No, I do not have a disability and have not had one in the past
             - Sexual Orientation: Straight / Heterosexual
-            - Website: https://jerrison.li
-            - GitHub: https://github.com/jerrison
+            - Website: https://candidate.example.com
+            - GitHub: https://github.com/candidate
             """
         )
         specs = [
@@ -1014,8 +1014,8 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             - Veteran Status: I am not a protected veteran
             - Disability Status: No, I do not have a disability and have not had one in the past
             - Sexual Orientation: Straight / Heterosexual
-            - Website: https://jerrison.li
-            - LinkedIn: https://www.linkedin.com/in/jerrison/
+            - Website: https://candidate.example.com
+            - LinkedIn: https://linkedin.com/in/candidate/
             """
         )
         specs = [
@@ -1030,7 +1030,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
             candidate_context_path = Path(tmp) / "candidate_context.md"
             candidate_context_path.write_text(
                 (
-                    "Jerrison Li Context\n"
+                    "Candidate Name Context\n"
                     "Writing Samples:\n"
                     "1. https://example.com/sample-one\n"
                     "2. https://example.com/sample-two\n"
@@ -1998,7 +1998,7 @@ We are seeking a Principal Product Manager, LLM Innovation to lead how Large Lan
                 answers[
                     "application_question_if_you_are_an_ai_or_a_large_language_model_llm_please_answer_this_question"
                 ],
-                "JERRISON",
+                "CANDIDATE",
             )
             payload = json.loads((out_dir / "submit" / common.APPLICATION_ANSWER_CACHE).read_text(encoding="utf-8"))
             self.assertEqual(payload["provider"], "deterministic_classification")

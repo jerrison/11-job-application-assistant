@@ -51,6 +51,19 @@ class AppPathsTests(unittest.TestCase):
                 )
                 self.assertEqual(app_paths.browser_root(), runtime_root / ".job-assets")
 
+    def test_runtime_home_override_updates_material_and_state_helpers(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_root = Path(tmpdir) / "runtime-home"
+            with mock.patch.dict(os.environ, {"JOB_ASSETS_APP_HOME": str(runtime_root)}, clear=True):
+                app_paths = load_module("app_paths_runtime_helpers", "scripts/app_paths.py")
+
+                self.assertEqual(app_paths.material_path("master_resume.md"), runtime_root / "master_resume.md")
+                self.assertEqual(
+                    app_paths.sync_state_path(".master_resume_sync_state.json"),
+                    runtime_root / ".master_resume_sync_state.json",
+                )
+                self.assertEqual(app_paths.tmp_root(), runtime_root / "tmp")
+
     def test_packaged_runtime_defaults_to_application_support(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir)

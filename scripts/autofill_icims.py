@@ -16,13 +16,15 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app_paths import display_path
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from application_submit_common import (
     APPLICATION_PROFILE_PATH,
-    PROJECT_ROOT,
+    MASTER_RESUME_PATH,
     build_email_confirmation_watcher,
     build_truthful_work_authorization_answer,
     find_cover_letter_file,
@@ -523,7 +525,7 @@ def _do_create_account(page, email: str, password: str) -> bool:
 
     # iCIMS registration typically asks for: email, password, confirm password,
     # and sometimes first/last name.
-    master_profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    master_profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
 
     def fill_visible_registration_fields() -> None:
         first_name_input = _first_visible_enabled_locator(
@@ -2083,7 +2085,7 @@ def _build_payload(out_dir: Path, provider: str | None = None) -> dict:
     """Build the autofill payload for an iCIMS application."""
     migrate_role_output_layout(out_dir)
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
 
     job_url = str(meta.get("jd_source_resolved") or meta["jd_source"])
@@ -2152,7 +2154,7 @@ def _run_icims_browser(payload_path: Path, headless: bool, submit: bool) -> int:
         return 1
     out_dir = Path(payload["out_dir"])
     meta = load_meta(out_dir)
-    profile = parse_master_resume((PROJECT_ROOT / "master_resume.md").read_text(encoding="utf-8"))
+    profile = parse_master_resume(MASTER_RESUME_PATH.read_text(encoding="utf-8"))
     application_profile = parse_application_profile(APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
     email, password = _icims_credentials()
 
@@ -2372,7 +2374,7 @@ def _run_icims_browser(payload_path: Path, headless: bool, submit: bool) -> int:
 
                     if not submit:
                         print(
-                            f"iCIMS: filled application for review: {pre_submit_path.relative_to(PROJECT_ROOT)}",
+                            f"iCIMS: filled application for review: {display_path(pre_submit_path)}",
                             file=sys.stderr,
                         )
                         return 0
@@ -2509,8 +2511,8 @@ def _run_icims_browser(payload_path: Path, headless: bool, submit: bool) -> int:
                     _capture(page, debug_png)
                     print(
                         f"iCIMS submit did not reach confirmed state. "
-                        f"See {debug_html.relative_to(PROJECT_ROOT)} and "
-                        f"{debug_png.relative_to(PROJECT_ROOT)}.",
+                        f"See {display_path(debug_html)} and "
+                        f"{display_path(debug_png)}.",
                         file=sys.stderr,
                     )
                     return 1
@@ -2584,10 +2586,7 @@ def _write_auth_outcome_log(
     if auth_scope:
         result["auth_scope"] = auth_scope
     log_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    try:
-        log_ref = log_path.relative_to(PROJECT_ROOT)
-    except ValueError:
-        log_ref = log_path
+    log_ref = display_path(log_path)
     print(f"iCIMS auth failure details: {log_ref}", file=sys.stderr)
 
     # Write submission result for pipeline tracking
