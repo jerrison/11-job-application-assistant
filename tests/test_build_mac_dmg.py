@@ -42,6 +42,34 @@ class BuildMacDmgTests(unittest.TestCase):
                     build_app_if_missing=False,
                 )
 
+    def test_build_dmg_builds_app_when_missing_and_flag_set(self):
+        module = load_module("build_mac_dmg_build_missing", "scripts/build_mac_dmg.py")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            distpath = root / "dist"
+            workpath = root / "build" / "dmg"
+            expected_app_path = module.app_bundle_path(distpath)
+
+            def build_app_stub(*, distpath: Path, workpath: Path) -> Path:
+                expected_app_path.mkdir(parents=True)
+                return expected_app_path
+
+            with mock.patch.object(module, "build_app", side_effect=build_app_stub) as build_app_mock:
+                with mock.patch("subprocess.run"):
+                    module.build_dmg(
+                        tag="v1.0.0",
+                        app_path=None,
+                        distpath=distpath,
+                        workpath=workpath,
+                        build_app_if_missing=True,
+                    )
+
+            build_app_mock.assert_called_once_with(
+                distpath=distpath,
+                workpath=workpath / "pyinstaller",
+            )
+
     def test_build_dmg_stages_app_and_calls_hdiutil(self):
         module = load_module("build_mac_dmg_hdiutil", "scripts/build_mac_dmg.py")
 
@@ -50,7 +78,13 @@ class BuildMacDmgTests(unittest.TestCase):
             app_path = root / "dist" / "Job Application Assistant.app"
             app_path.mkdir(parents=True)
 
-            with mock.patch("subprocess.run") as run_mock:
+            def assert_hdiutil_called(*call_args, **call_kwargs):
+                src_index = call_args[0].index("-srcfolder")
+                srcfolder = Path(call_args[0][src_index + 1])
+                self.assertTrue((srcfolder / app_path.name).exists())
+                return None
+
+            with mock.patch("subprocess.run", side_effect=assert_hdiutil_called) as run_mock:
                 output_path = module.build_dmg(
                     tag="v1.0.0",
                     app_path=app_path,
@@ -65,9 +99,17 @@ class BuildMacDmgTests(unittest.TestCase):
             )
             run_mock.assert_called_once()
             args = run_mock.call_args.args[0]
+            self.assertTrue(run_mock.call_args.kwargs["check"])
             self.assertEqual(args[:2], ["hdiutil", "create"])
-            self.assertIn("-srcfolder", args)
+            src_index = args.index("-srcfolder")
+            srcfolder = Path(args[src_index + 1])
+            self.assertTrue(srcfolder.is_relative_to(root / "build" / "dmg"))
+            self.assertEqual(srcfolder.name, "root")
             self.assertIn("-volname", args)
+            self.assertIn("-fs", args)
+            self.assertIn("HFS+", args)
+            self.assertIn("-format", args)
+            self.assertIn("UDZO", args)
             self.assertEqual(args[-1], str(output_path))
 
 
