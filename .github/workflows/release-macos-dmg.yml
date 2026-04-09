@@ -34,14 +34,14 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Verify release exists
+        run: gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+
       - name: Build app bundle
         run: uv run --with pyinstaller python scripts/build_mac_app.py
 
       - name: Build DMG
         run: uv run python scripts/build_mac_dmg.py --tag "$RELEASE_TAG"
-
-      - name: Verify release exists
-        run: gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
 
       - name: Upload DMG asset
         run: |
