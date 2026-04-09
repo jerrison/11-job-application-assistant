@@ -32,6 +32,15 @@ class BuildMacAppTests(unittest.TestCase):
         self.assertIn("governance/runtime-policy.json:governance", joined)
         self.assertIn(str(PROJECT_ROOT / "scripts" / "mac_app_launcher.py"), args)
 
+    def test_app_bundle_path_uses_distpath_and_app_name(self):
+        build_mac_app = load_module("build_mac_app_bundle_path", "scripts/build_mac_app.py")
+        distpath = PROJECT_ROOT / "dist-test"
+
+        self.assertEqual(
+            build_mac_app.app_bundle_path(distpath),
+            distpath / f"{build_mac_app.APP_NAME}.app",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
