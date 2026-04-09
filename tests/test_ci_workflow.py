@@ -29,6 +29,21 @@ class CiWorkflowTests(unittest.TestCase):
         self.assertIn("startsWith(github.head_ref, 'codex/')", workflow)
         self.assertIn("unit-tests:", workflow)
 
+    def test_release_macos_dmg_workflow_supports_publish_and_backfill(self):
+        workflow_path = PROJECT_ROOT / ".github" / "workflows" / "release-macos-dmg.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn("release:", workflow)
+        self.assertIn("- published", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("tag:", workflow)
+        self.assertIn("runs-on: macos-latest", workflow)
+        self.assertIn("permissions:", workflow)
+        self.assertIn("contents: write", workflow)
+        self.assertIn("scripts/build_mac_dmg.py --tag", workflow)
+        self.assertIn("gh release upload", workflow)
+        self.assertIn("--clobber", workflow)
+
     def test_all_generated_provider_files_match_agents_md(self):
         """Every generated provider copy must mirror the canonical prompt."""
         agents = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
