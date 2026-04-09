@@ -29,6 +29,45 @@ class CiWorkflowTests(unittest.TestCase):
         self.assertIn("startsWith(github.head_ref, 'codex/')", workflow)
         self.assertIn("unit-tests:", workflow)
 
+    def test_release_macos_dmg_workflow_supports_publish_and_backfill(self):
+        workflow_path = PROJECT_ROOT / ".github" / "workflows" / "release-macos-dmg.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn("release:", workflow)
+        self.assertIn("- published", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("tag:", workflow)
+        self.assertIn("runs-on: macos-latest", workflow)
+        self.assertIn("permissions:", workflow)
+        self.assertIn("contents: write", workflow)
+        self.assertIn("ref: ${{ github.event.release.tag_name || inputs.tag }}", workflow)
+        self.assertIn('gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"', workflow)
+        self.assertIn("scripts/build_mac_dmg.py --tag", workflow)
+        self.assertIn("gh release upload", workflow)
+        self.assertIn(
+            'dist/Job-Application-Assistant-$RELEASE_TAG-macos.dmg',
+            workflow,
+        )
+        self.assertIn("--clobber", workflow)
+        self.assertNotIn("gh release create", workflow)
+        self.assertNotIn("--generate-notes", workflow)
+
+        self.assertLess(
+            workflow.index('gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"'),
+            workflow.index("uv run --with pyinstaller python scripts/build_mac_app.py"),
+        )
+
+    def test_macos_docs_cover_dmg_build_and_unsigned_release_artifact(self):
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+        macos_doc = (PROJECT_ROOT / "docs" / "macos-app.md").read_text(encoding="utf-8")
+
+        self.assertIn("build_mac_dmg.py", readme)
+        self.assertIn("GitHub releases", readme)
+        self.assertIn("build_mac_dmg.py", macos_doc)
+        self.assertIn("Job-Application-Assistant-<tag>-macos.dmg", macos_doc)
+        self.assertIn("unsigned", macos_doc)
+        self.assertIn("Gatekeeper", macos_doc)
+
     def test_all_generated_provider_files_match_agents_md(self):
         """Every generated provider copy must mirror the canonical prompt."""
         agents = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -132,7 +171,7 @@ class CiWorkflowTests(unittest.TestCase):
             "autofill_linkedin.py": 2748,  # Baseline is now 2748 lines; resume verification, modal-proof handling, single-step submit safeguards, and extracted runtime-path support broadened the LinkedIn runner before its planned split
             "autofill_phenom.py": 2879,  # Baseline is now 2879 lines; cross-board proof, deterministic-answer logic, hybrid-location handling, and packaged-runtime db/path guards broadened the Phenom runner before its planned split
             "autofill_workday.py": 6785,  # Baseline is now 6785 lines; deterministic question filling, prompt/checkbox recovery, review-boundary guards, recent answer-proof handling, and packaged-runtime display-path guards broadened the Workday hub before the planned module split
-            "job_db.py": 3909,  # Baseline is now 3909 lines; submission locks, repair clustering, disk sync, duplicate normalization, current-attempt sync state, and extracted repo/runtime separation broadened the jobs DB hub before the planned persistence split lands
+            "job_db.py": 3918,  # Baseline is now 3918 lines; submission locks, repair clustering, disk sync, duplicate normalization, current-attempt sync state, extracted repo/runtime separation, and runtime-home parent-dir bootstrapping broadened the jobs DB hub before the planned persistence split lands
             "pipeline_orchestrator.py": 3700,  # Baseline is now 3700 lines; draft audit, captcha escalation, repair runtime hooks, provider fallback plumbing, and packaged-runtime output-root discovery broadened the runtime hub before the tracked split lands
         }
         scripts_dir = PROJECT_ROOT / "scripts"

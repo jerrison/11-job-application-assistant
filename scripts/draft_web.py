@@ -6,6 +6,7 @@ import json
 import logging
 import sqlite3
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -22,12 +23,29 @@ except ImportError:  # pragma: no cover - optional web dependency
 
 PROJECT_ROOT = SCRIPTS_DIR.parent
 _DEFAULT_PROJECT_ROOT = PROJECT_ROOT
+_BOOTSTRAPPED_DB_PATH: Path | None = None
 
 
 def _runtime_jobs_db_path() -> Path:
     if PROJECT_ROOT != _DEFAULT_PROJECT_ROOT:
         return PROJECT_ROOT / "jobs.db"
     return jobs_db_path()
+
+
+def _ensure_runtime_db_bootstrapped() -> Path:
+    db_path = _runtime_jobs_db_path()
+    global _BOOTSTRAPPED_DB_PATH
+    if db_path == _BOOTSTRAPPED_DB_PATH and db_path.exists():
+        return db_path
+
+    if str(SCRIPTS_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+    from job_db import init_db
+
+    conn = init_db(db_path, check_same_thread=False)
+    conn.close()
+    _BOOTSTRAPPED_DB_PATH = db_path
+    return db_path
 
 log = logging.getLogger(__name__)
 
@@ -40,14 +58,26 @@ def create_app():
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
-    app = FastAPI(title="Job Application Draft Review")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if str(SCRIPTS_DIR) not in sys.path:
+            sys.path.insert(0, str(SCRIPTS_DIR))
+        from job_db import close_all_connections
+
+        _ensure_runtime_db_bootstrapped()
+        try:
+            yield
+        finally:
+            close_all_connections()
+
+    app = FastAPI(title="Job Application Draft Review", lifespan=lifespan)
 
     def _open_db():
         if str(SCRIPTS_DIR) not in sys.path:
             sys.path.insert(0, str(SCRIPTS_DIR))
         from job_db import open_db_tracked
 
-        return open_db_tracked(_runtime_jobs_db_path(), check_same_thread=False)
+        return open_db_tracked(_ensure_runtime_db_bootstrapped(), check_same_thread=False)
 
     def _request_action_audit(request: FastAPIRequest) -> tuple[dict | None, str | None]:
         if str(SCRIPTS_DIR) not in sys.path:

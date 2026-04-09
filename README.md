@@ -170,6 +170,15 @@ Build the desktop app bundle with PyInstaller:
 uv run --with pyinstaller python scripts/build_mac_app.py
 ```
 
+Build a local `.dmg` release artifact:
+
+```bash
+uv run python scripts/build_mac_dmg.py --tag v1.0.0
+```
+
+The `.dmg` output is suitable for attaching to GitHub releases when distributing
+the macOS app.
+
 The bundle launches the same local web UI, routes internal subprocesses through
 packaged-safe entrypoints, and keeps writable state under the user runtime
 home. See [docs/macos-app.md](docs/macos-app.md).

@@ -89,15 +89,24 @@ def pyinstaller_args(*, distpath: Path | None = None, workpath: Path | None = No
     return args
 
 
+def app_bundle_path(distpath: Path) -> Path:
+    return distpath / f"{APP_NAME}.app"
+
+
+def build_app(*, distpath: Path, workpath: Path) -> Path:
+    from PyInstaller.__main__ import run
+
+    run(pyinstaller_args(distpath=distpath, workpath=workpath))
+    return app_bundle_path(distpath)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build the macOS app bundle with PyInstaller.")
     parser.add_argument("--distpath", type=Path, default=PROJECT_ROOT / "dist")
     parser.add_argument("--workpath", type=Path, default=PROJECT_ROOT / "build" / "pyinstaller")
     args = parser.parse_args()
 
-    from PyInstaller.__main__ import run
-
-    run(pyinstaller_args(distpath=args.distpath, workpath=args.workpath))
+    build_app(distpath=args.distpath, workpath=args.workpath)
     return 0
 
 
