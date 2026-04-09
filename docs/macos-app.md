@@ -18,11 +18,28 @@ Build the `.app` bundle with PyInstaller:
 uv run --with pyinstaller python scripts/build_mac_app.py
 ```
 
+Build a local `.dmg` release artifact:
+
+```bash
+uv run python scripts/build_mac_dmg.py --tag v1.0.0
+```
+
 Bundle output:
 
 ```text
 dist/Job Application Assistant.app
 ```
+
+DMG output:
+
+```text
+dist/Job-Application-Assistant-v1.0.0-macos.dmg
+```
+
+The DMG name uses the release tag (for example,
+`Job-Application-Assistant-<tag>-macos.dmg`). The current DMG is unsigned, so
+Gatekeeper may warn until signing and notarization are added later. GitHub
+releases can include the macOS DMG for distribution.
 
 ## What The Bundle Contains
 
