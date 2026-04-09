@@ -40,9 +40,22 @@ class CiWorkflowTests(unittest.TestCase):
         self.assertIn("runs-on: macos-latest", workflow)
         self.assertIn("permissions:", workflow)
         self.assertIn("contents: write", workflow)
+        self.assertIn("ref: ${{ github.event.release.tag_name || inputs.tag }}", workflow)
+        self.assertIn('gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"', workflow)
         self.assertIn("scripts/build_mac_dmg.py --tag", workflow)
         self.assertIn("gh release upload", workflow)
+        self.assertIn(
+            'dist/Job-Application-Assistant-$RELEASE_TAG-macos.dmg',
+            workflow,
+        )
         self.assertIn("--clobber", workflow)
+        self.assertNotIn("gh release create", workflow)
+        self.assertNotIn("--generate-notes", workflow)
+
+        self.assertLess(
+            workflow.index('gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"'),
+            workflow.index("uv run --with pyinstaller python scripts/build_mac_app.py"),
+        )
 
     def test_all_generated_provider_files_match_agents_md(self):
         """Every generated provider copy must mirror the canonical prompt."""
