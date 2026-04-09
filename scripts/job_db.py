@@ -828,6 +828,15 @@ def managed_sqlite_connect(*args, **kwargs) -> sqlite3.Connection:
 sqlite3.connect = managed_sqlite_connect
 
 
+def _connectable_db_path(db_path: Path | str) -> str:
+    raw_path = str(db_path)
+    if raw_path == ":memory:" or raw_path.startswith("file:"):
+        return raw_path
+    path = Path(raw_path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 def open_db(db_path: Path | str, *, check_same_thread: bool = True) -> sqlite3.Connection:
     """Open a lightweight DB connection (PRAGMAs only, no schema/migrations).
 
@@ -835,7 +844,7 @@ def open_db(db_path: Path | str, *, check_same_thread: bool = True) -> sqlite3.C
     called once to set up the schema.
     """
     conn = sqlite3.connect(
-        str(db_path),
+        _connectable_db_path(db_path),
         check_same_thread=check_same_thread,
         timeout=30,
         factory=ManagedConnection,
@@ -869,7 +878,7 @@ def close_all_connections() -> None:
 
 def init_db(db_path: Path | str, *, check_same_thread: bool = True) -> sqlite3.Connection:
     conn = sqlite3.connect(
-        str(db_path),
+        _connectable_db_path(db_path),
         check_same_thread=check_same_thread,
         timeout=30,
         factory=ManagedConnection,

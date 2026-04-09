@@ -171,7 +171,7 @@ class CiWorkflowTests(unittest.TestCase):
             "autofill_linkedin.py": 2748,  # Baseline is now 2748 lines; resume verification, modal-proof handling, single-step submit safeguards, and extracted runtime-path support broadened the LinkedIn runner before its planned split
             "autofill_phenom.py": 2879,  # Baseline is now 2879 lines; cross-board proof, deterministic-answer logic, hybrid-location handling, and packaged-runtime db/path guards broadened the Phenom runner before its planned split
             "autofill_workday.py": 6785,  # Baseline is now 6785 lines; deterministic question filling, prompt/checkbox recovery, review-boundary guards, recent answer-proof handling, and packaged-runtime display-path guards broadened the Workday hub before the planned module split
-            "job_db.py": 3909,  # Baseline is now 3909 lines; submission locks, repair clustering, disk sync, duplicate normalization, current-attempt sync state, and extracted repo/runtime separation broadened the jobs DB hub before the planned persistence split lands
+            "job_db.py": 3918,  # Baseline is now 3918 lines; submission locks, repair clustering, disk sync, duplicate normalization, current-attempt sync state, extracted repo/runtime separation, and runtime-home parent-dir bootstrapping broadened the jobs DB hub before the planned persistence split lands
             "pipeline_orchestrator.py": 3700,  # Baseline is now 3700 lines; draft audit, captcha escalation, repair runtime hooks, provider fallback plumbing, and packaged-runtime output-root discovery broadened the runtime hub before the tracked split lands
         }
         scripts_dir = PROJECT_ROOT / "scripts"

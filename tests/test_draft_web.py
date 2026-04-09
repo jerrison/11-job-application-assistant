@@ -1,6 +1,9 @@
+import importlib.util
 import json
+import os
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
 
@@ -12,56 +15,69 @@ import unittest
 class DraftWebTests(unittest.TestCase):
     """Tests for the FastAPI draft review web interface."""
 
+    @contextmanager
+    def _draft_web_client(self):
+        if importlib.util.find_spec("fastapi.testclient") is None:
+            self.skipTest("fastapi not installed")
+
+        import draft_web
+        from fastapi.testclient import TestClient
+
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = Path(tmp)
+            original_root = draft_web.PROJECT_ROOT
+            draft_web.PROJECT_ROOT = project_root
+            try:
+                with TestClient(draft_web.create_app()) as client:
+                    yield client, project_root
+            finally:
+                draft_web.PROJECT_ROOT = original_root
+
+    @contextmanager
+    def _draft_web_client_with_app_home(self, app_home: Path):
+        if importlib.util.find_spec("fastapi.testclient") is None:
+            self.skipTest("fastapi not installed")
+
+        import draft_web
+        from fastapi.testclient import TestClient
+
+        with mock.patch.dict(os.environ, {"JOB_ASSETS_APP_HOME": str(app_home)}, clear=False):
+            with TestClient(draft_web.create_app()) as client:
+                yield client
+
     def test_list_drafts_endpoint(self):
-        try:
-            from fastapi.testclient import TestClient
-        except ImportError:
-            self.skipTest("fastapi not installed — install with: uv pip install -e '.[web]'")
-
-        from draft_web import create_app
-
-        client = TestClient(create_app())
-        resp = client.get("/api/drafts")
+        with self._draft_web_client() as (client, _project_root):
+            resp = client.get("/api/drafts")
         self.assertEqual(resp.status_code, 200)
         self.assertIsInstance(resp.json(), list)
 
+    def test_list_drafts_endpoint_bootstraps_nonexistent_app_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app_home = Path(tmp) / "fresh-runtime-home"
+
+            with self._draft_web_client_with_app_home(app_home) as client:
+                resp = client.get("/api/drafts")
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.json(), [])
+            self.assertTrue((app_home / "jobs.db").exists())
+
     def test_dashboard_html(self):
-        try:
-            from fastapi.testclient import TestClient
-        except ImportError:
-            self.skipTest("fastapi not installed")
-
-        from draft_web import create_app
-
-        client = TestClient(create_app())
-        resp = client.get("/")
+        with self._draft_web_client() as (client, _project_root):
+            resp = client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("text/html", resp.headers.get("content-type", ""))
         self.assertIn("Application Drafts", resp.text)
 
     def test_get_draft_not_found(self):
-        try:
-            from fastapi.testclient import TestClient
-        except ImportError:
-            self.skipTest("fastapi not installed")
-
-        from draft_web import create_app
-
-        client = TestClient(create_app())
-        resp = client.get("/api/drafts/99999")
+        with self._draft_web_client() as (client, _project_root):
+            resp = client.get("/api/drafts/99999")
         self.assertEqual(resp.status_code, 404)
 
     def test_get_image_invalid_type(self):
-        try:
-            from fastapi.testclient import TestClient
-        except ImportError:
-            self.skipTest("fastapi not installed")
-
-        from draft_web import create_app
-
-        client = TestClient(create_app())
-        # Even if job existed, an invalid image type returns 400 or 404
-        resp = client.get("/api/drafts/99999/images/invalid")
+        with self._draft_web_client() as (client, _project_root):
+            # Even if job existed, an invalid image type returns 400 or 404.
+            resp = client.get("/api/drafts/99999/images/invalid")
         self.assertIn(resp.status_code, (400, 404))
 
     def test_reset_route_and_control_are_exposed(self):
