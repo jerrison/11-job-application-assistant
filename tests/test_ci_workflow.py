@@ -57,6 +57,17 @@ class CiWorkflowTests(unittest.TestCase):
             workflow.index("uv run --with pyinstaller python scripts/build_mac_app.py"),
         )
 
+    def test_macos_docs_cover_dmg_build_and_unsigned_release_artifact(self):
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+        macos_doc = (PROJECT_ROOT / "docs" / "macos-app.md").read_text(encoding="utf-8")
+
+        self.assertIn("build_mac_dmg.py", readme)
+        self.assertIn("GitHub releases", readme)
+        self.assertIn("build_mac_dmg.py", macos_doc)
+        self.assertIn("Job-Application-Assistant-<tag>-macos.dmg", macos_doc)
+        self.assertIn("unsigned", macos_doc)
+        self.assertIn("Gatekeeper", macos_doc)
+
     def test_all_generated_provider_files_match_agents_md(self):
         """Every generated provider copy must mirror the canonical prompt."""
         agents = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
