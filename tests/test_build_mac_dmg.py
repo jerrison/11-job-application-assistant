@@ -82,7 +82,6 @@ class BuildMacDmgTests(unittest.TestCase):
                 src_index = call_args[0].index("-srcfolder")
                 srcfolder = Path(call_args[0][src_index + 1])
                 self.assertTrue((srcfolder / app_path.name).exists())
-                return None
 
             with mock.patch("subprocess.run", side_effect=assert_hdiutil_called) as run_mock:
                 output_path = module.build_dmg(

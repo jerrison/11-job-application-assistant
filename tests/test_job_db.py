@@ -3676,8 +3676,9 @@ def test_init_db_detects_corruption(tmp_path):
 
 def test_init_db_succeeds_on_fresh_db(tmp_path):
     """init_db works normally on a fresh database."""
-    db_path = tmp_path / "fresh.db"
+    db_path = tmp_path / "runtime" / "nested" / "fresh.db"
     conn = init_db(db_path)
+    assert db_path.parent.is_dir()
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     assert "jobs" in tables
     conn.close()
@@ -3685,8 +3686,9 @@ def test_init_db_succeeds_on_fresh_db(tmp_path):
 
 def test_open_db_does_not_create_schema(tmp_path):
     """open_db only sets PRAGMAs, does not create tables."""
-    db_path = tmp_path / "empty.db"
+    db_path = tmp_path / "runtime" / "nested" / "empty.db"
     conn = open_db(db_path)
+    assert db_path.parent.is_dir()
     tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     assert len(tables) == 0
     conn.close()

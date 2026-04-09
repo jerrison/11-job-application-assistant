@@ -783,14 +783,19 @@ class ApplicationSubmitCommonDocumentTests(unittest.TestCase):
         self.assertEqual(policy.text_value, "Yes")
 
     def test_resolve_shared_question_policy_answers_no_for_trustly_prior_application_prompt(self):
-        profile = self.mod.parse_application_profile(
-            self.mod.APPLICATION_PROFILE_PATH.read_text(encoding="utf-8")
-        )
-        policy = self.mod.resolve_shared_question_policy(
-            "Have you ever applied for a role at Trustly before?",
-            profile,
-            company_name="Trustly",
-        )
+        from job_db import init_db
+
+        profile = self.mod.parse_application_profile(self.mod.APPLICATION_PROFILE_PATH.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            jobs_db_path = Path(tmpdir) / "jobs.db"
+            init_db(jobs_db_path).close()
+
+            with mock.patch.object(self.mod, "JOBS_DB_PATH", jobs_db_path):
+                policy = self.mod.resolve_shared_question_policy(
+                    "Have you ever applied for a role at Trustly before?",
+                    profile,
+                    company_name="Trustly",
+                )
 
         self.assertIsNotNone(policy)
         self.assertEqual(policy.category, "prior_application")
