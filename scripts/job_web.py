@@ -775,6 +775,38 @@ def _run_saved_portal_import(saved_portal: str, req: SavedPortalImportRequest | 
         raise HTTPException(500, str(exc)) from exc
 
 
+def _launch_saved_portal_auth_setup(saved_portal: str) -> dict:
+    try:
+        spec = saved_portal_import.get_saved_portal(saved_portal)
+    except ValueError as exc:
+        raise HTTPException(404, "Unknown saved portal") from exc
+
+    spawn_env = dict(os.environ)
+    spawn_env.setdefault("JOB_ASSETS_USE_UV_ENTRYPOINTS", "1")
+    command = python_script_command(
+        "scripts/setup_saved_portal_profile.py",
+        spec.key,
+        environ=spawn_env,
+    )
+    log_path = logs_root() / f"saved-portal-auth-{spec.key}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("ab") as log_file:
+        subprocess.Popen(
+            command,
+            cwd=str(PROJECT_ROOT),
+            env=spawn_env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+    return {
+        "status": "launched",
+        "portal": spec.key,
+        "message": f"Opened {spec.label} sign-in window. Sign in, close the browser, then retry import.",
+    }
+
+
 # ── App Factory ──────────────────────────────────────────────────────────
 
 
@@ -1109,6 +1141,10 @@ def create_app() -> FastAPI:
     def import_saved_portal(saved_portal: str, req: SavedPortalImportRequest | None = None):
         """Import jobs from a saved-job portal (synchronous)."""
         return _run_saved_portal_import(saved_portal, req)
+
+    @app.post("/api/jobs/import/{saved_portal}/auth")
+    def launch_saved_portal_auth(saved_portal: str):
+        return _launch_saved_portal_auth_setup(saved_portal)
 
     @app.post("/api/jobs/import-saved-portal/{saved_portal}")
     def import_saved_portal_legacy_path(saved_portal: str, req: SavedPortalImportRequest | None = None):

@@ -10,12 +10,18 @@ from __future__ import annotations
 import os
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urljoin, urlparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
+
+from project_env import load_project_env
+from saved_portal_auth import fetch_security_code_from_gmail
+
+load_project_env()
 
 SOURCE_PATTERNS: dict[str, tuple[str, ...]] = {
     "linkedin": ("linkedin.com",),
@@ -266,22 +272,58 @@ def _ensure_linkedin_logged_in(page) -> bool:
     """Check if the page hit an auth wall and auto-login if credentials are available."""
     if "authwall" not in page.url and "/login" not in page.url and "checkpoint" not in page.url:
         return True  # Not on auth wall
-    email = os.environ.get("LINKEDIN_EMAIL", "").strip()
+    email = os.environ.get("LINKEDIN_EMAIL", "").strip() or os.environ.get("JOB_ASSETS_LOGIN_EMAIL", "").strip()
     password = os.environ.get("LINKEDIN_PASSWORD", "").strip()
     if not email or not password:
         return False
+
+    def _first_locator(locator):
+        first = getattr(locator, "first", None)
+        if callable(first):
+            try:
+                return first()
+            except TypeError:
+                pass
+        if first is not None:
+            return first
+        return locator
+
     try:
+        issued_at = datetime.now(UTC)
         # Navigate to login page if on authwall
         if "authwall" in page.url:
             page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=15000)
             page.wait_for_timeout(2000)
-        email_input = page.locator('input#username, input[name="session_key"]').first
-        pw_input = page.locator('input#password, input[name="session_password"]').first
+        email_input = _first_locator(page.locator('input#username, input[name="session_key"]'))
+        pw_input = _first_locator(page.locator('input#password, input[name="session_password"]'))
         if email_input.count() and pw_input.count():
             email_input.fill(email)
             pw_input.fill(password)
-            page.locator('button[type="submit"], button:has-text("Sign in")').first.click()
+            _first_locator(page.locator('button[type="submit"], button:has-text("Sign in")')).click()
             page.wait_for_timeout(5000)
+            body_text = ""
+            try:
+                body_text = page.locator("body").inner_text(timeout=4000).casefold()
+            except Exception:
+                body_text = ""
+            if "security code" in body_text or "verification code" in body_text:
+                code = fetch_security_code_from_gmail(
+                    ["linkedin", '"security code"'],
+                    min_received_at_utc=issued_at,
+                    wait_seconds=120,
+                )
+                if not code:
+                    return False
+                code_input = _first_locator(
+                    page.locator(
+                        "input[autocomplete='one-time-code'], input[name*='pin'], input[name*='code'], input[id*='pin'], input[id*='code']"
+                    )
+                )
+                if not code_input.count():
+                    return False
+                code_input.fill(code)
+                _first_locator(page.locator('button[type="submit"], button:has-text("Submit"), button:has-text("Verify")')).click()
+                page.wait_for_timeout(5000)
             return "feed" in page.url or "linkedin.com/jobs" in page.url or "linkedin.com/in" in page.url
     except Exception:
         pass

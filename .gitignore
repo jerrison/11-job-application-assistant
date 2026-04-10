@@ -17,7 +17,11 @@ dist/
 .playwright-cli/
 .playwright-browsers/
 .playwright-trueup/
+.playwright-trueup-home/
 .playwright-trueup.lock
+.playwright-jackandjill/
+.playwright-jackandjill-home/
+.playwright-jackandjill.lock
 .playwright-linkedin/
 .playwright-linkedin-home/
 .playwright-linkedin.lock

@@ -13,8 +13,12 @@ from pathlib import Path
 from typing import Any, TypedDict
 from urllib.parse import parse_qs, urlparse, urlunparse
 
+from project_env import load_project_env
+from saved_portal_auth import open_saved_portal_login
 from saved_portal_browser import saved_portal_browser_session
 from saved_portal_import import AuthRequiredError, import_saved_portal_jobs
+
+load_project_env()
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +148,15 @@ def _jackandjill_context():
         purpose="Jack & Jill saved jobs import",
     ) as browser:
         yield browser
+
+
+def launch_auth_setup() -> None:
+    open_saved_portal_login(
+        profile_dir=_JACKANDJILL_PROFILE_DIR,
+        lock_file=_JACKANDJILL_LOCK_FILE,
+        url=OPPORTUNITIES_URL,
+        purpose="Jack & Jill saved jobs auth setup",
+    )
 
 
 def _scrape_saved_jobs(context) -> list[SavedJackAndJillJob]:

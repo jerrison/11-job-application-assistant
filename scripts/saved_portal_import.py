@@ -43,6 +43,14 @@ def load_saved_portal_module(portal: str):
     return importlib.import_module(spec.module_name)
 
 
+def launch_saved_portal_auth_setup(portal: str) -> None:
+    module = load_saved_portal_module(portal)
+    launcher = getattr(module, "launch_auth_setup", None)
+    if not callable(launcher):
+        raise RuntimeError(f"Saved-portal auth setup is not supported: {portal}")
+    launcher()
+
+
 def _empty_result(status: str = "ok", message: str = "") -> dict[str, Any]:
     return {
         "status": status,

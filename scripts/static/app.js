@@ -5217,6 +5217,7 @@ const SAVED_PORTAL_UI = {
   trueup: { label: 'TrueUp', buttonId: 'trueup-import-btn', addButtonId: 'add-trueup-import-btn' },
   jackandjill: { label: 'Jack & Jill', buttonId: 'jackandjill-import-btn', addButtonId: 'add-jackandjill-import-btn' },
 };
+const SAVED_PORTAL_IMPORT_PENDING_COPY = 'this may take several minutes for large saved lists';
 
 function _savedPortalConfig(portal) {
   const config = SAVED_PORTAL_UI[portal];
@@ -5249,12 +5250,32 @@ function _formatSavedPortalResult(label, result) {
   return line;
 }
 
+async function openSavedPortalAuthSetup(portal) {
+  const label = _savedPortalLabel(portal);
+  try {
+    const result = await apiCall('POST', `/api/jobs/import/${encodeURIComponent(portal)}/auth`);
+    showToast(result?.message || `Opened ${label} sign-in window. Sign in, close the browser, then retry import.`, 'info');
+    return { ok: true, result };
+  } catch (err) {
+    showToast(`${label} sign-in setup failed: ${err.message}`, 'error');
+    return { ok: false, error: err };
+  }
+}
+
+async function _offerSavedPortalAuthSetup(portal) {
+  const label = _savedPortalLabel(portal);
+  if (!confirm(`${label} requires sign-in in its dedicated browser profile. Open the ${label} sign-in window now?`)) {
+    return { ok: false, cancelled: true };
+  }
+  return openSavedPortalAuthSetup(portal);
+}
+
 async function _importSavedPortal(portal, { btn, provider, priority, toastPrefix }) {
   const label = _savedPortalLabel(portal);
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Importing...';
-  showToast(`${label} import running — this may take a minute`, 'info');
+  showToast(`${label} import running — ${SAVED_PORTAL_IMPORT_PENDING_COPY}`, 'info');
   try {
     const result = await apiCall('POST', `/api/jobs/import/${encodeURIComponent(portal)}`, {
       provider: provider || null,
@@ -5264,6 +5285,9 @@ async function _importSavedPortal(portal, { btn, provider, priority, toastPrefix
     const summary = _formatSavedPortalResult(label, result);
     const toastKind = result?.status === 'ok' ? 'success' : (result?.status === 'auth_required' ? 'warning' : 'error');
     showToast(`${toastPrefix}${summary}`, toastKind);
+    if (result?.status === 'auth_required') {
+      await _offerSavedPortalAuthSetup(portal);
+    }
     return { ok: true, result };
   } catch (err) {
     showToast(`${label} import failed: ${err.message}`, 'error');
@@ -5298,7 +5322,7 @@ async function importSavedPortalFromAddView(portal) {
   const feedback = document.getElementById('add-feedback');
   if (feedback) {
     feedback.className = 'add-feedback warning';
-    feedback.textContent = `Importing ${_savedPortalLabel(portal)} saved jobs... this may take a minute.`;
+    feedback.textContent = `Importing ${_savedPortalLabel(portal)} saved jobs... ${SAVED_PORTAL_IMPORT_PENDING_COPY}.`;
     feedback.style.display = 'block';
   }
   const { ok, result, error } = await _importSavedPortal(portal, { btn, provider, priority, toastPrefix: '' });

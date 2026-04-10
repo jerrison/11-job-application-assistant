@@ -44,13 +44,19 @@ def get_imports(filepath: Path) -> list[tuple[str, int]]:
     except SyntaxError:
         return []
 
+    def root_module_name(name: str) -> str:
+        parts = name.split(".")
+        if len(parts) > 1 and parts[0] == "scripts":
+            return parts[1]
+        return parts[0]
+
     imports: list[tuple[str, int]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                imports.append((alias.name.split(".")[0], node.lineno))
+                imports.append((root_module_name(alias.name), node.lineno))
         elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.append((node.module.split(".")[0], node.lineno))
+            imports.append((root_module_name(node.module), node.lineno))
     return imports
 
 

@@ -709,6 +709,120 @@ class BrowserRuntimeTests(unittest.TestCase):
         self.assertIn("bundled Chrome for Testing is disabled for headed macOS submit flows", str(context.exception))
         self.assertIn("Headed macOS submit flows require an installed local browser", str(context.exception))
 
+    def test_ensure_google_session_continues_when_page_content_probe_raises(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        class FakePage:
+            def __init__(self):
+                self.url = "https://accounts.google.com"
+                self.goto_calls = []
+                self.wait_calls = []
+                self.inner_text_calls = 0
+                self.content_calls = 0
+                self.poll_count = 0
+
+            def goto(self, url, wait_until=None, timeout=None):
+                self.goto_calls.append((url, wait_until, timeout))
+
+            def inner_text(self, selector, timeout=None):
+                self.inner_text_calls += 1
+                return "[]" if self.inner_text_calls == 1 else ""
+
+            def wait_for_timeout(self, timeout_ms):
+                self.wait_calls.append(timeout_ms)
+                self.poll_count += 1
+
+            def content(self):
+                self.content_calls += 1
+                if self.content_calls == 1:
+                    raise RuntimeError("content unavailable")
+                return "data-email=\"bot@example.com\""
+
+        page = FakePage()
+
+        with mock.patch.object(browser_runtime.sys, "platform", "linux"):
+            browser_runtime.ensure_google_session(page, headless=False)
+
+        assert [call[0] for call in page.goto_calls] == [
+            "https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser",
+            "https://accounts.google.com",
+        ]
+        assert page.wait_calls == [2000, 2000]
+        assert page.content_calls == 2
+
+    def test_ensure_google_session_reports_active_signed_in_session(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        class FakePage:
+            url = "about:blank"
+
+            def goto(self, url, wait_until=None, timeout=None):
+                self.last_goto = (url, wait_until, timeout)
+
+            def inner_text(self, selector, timeout=None):
+                return '[["gaia.l.a","user@example.com","User Example",0,0,0,0,1,null,"avatar"]]'
+
+        page = FakePage()
+        with mock.patch("builtins.print") as print_mock:
+            browser_runtime.ensure_google_session(page, headless=False)
+
+        print_mock.assert_any_call("Google session: active (signed in)")
+
+    def test_ensure_google_session_headless_warns_without_interactive_reauth(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        class FakePage:
+            def __init__(self):
+                self.goto_calls = []
+
+            def goto(self, url, wait_until=None, timeout=None):
+                self.goto_calls.append(url)
+
+            def inner_text(self, selector, timeout=None):
+                return "[]"
+
+        page = FakePage()
+        with mock.patch("builtins.print") as print_mock:
+            browser_runtime.ensure_google_session(page, headless=True)
+
+        assert page.goto_calls == [
+            "https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser"
+        ]
+        print_mock.assert_any_call("WARNING: Google session expired (headless — cannot re-authenticate).")
+
+    def test_run_osascript_returns_false_when_subprocess_raises(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        with (
+            mock.patch.object(browser_runtime.sys, "platform", "darwin"),
+            mock.patch("subprocess.run", side_effect=OSError("osascript missing")),
+        ):
+            assert browser_runtime._run_osascript('display notification "x"') is False
+
+    def test_focus_chromium_window_without_title_uses_first_window_script(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        with mock.patch.object(browser_runtime, "_run_osascript", return_value=True) as run_osascript:
+            browser_runtime.focus_chromium_window(title_substring="")
+
+        script = run_osascript.call_args.args[0]
+        assert "set targetWindow to first window" in script
+        assert "whose name contains" not in script
+
+    def test_detect_webapp_screen_origin_matches_window_to_screen(self):
+        browser_runtime = load_module("browser_runtime", "scripts/browser_runtime.py")
+
+        responses = [
+            mock.Mock(stdout="1440,100\n"),
+            mock.Mock(stdout='[{"x":0,"y":0,"w":1440,"h":900},{"x":1440,"y":0,"w":1440,"h":900}]'),
+        ]
+
+        with (
+            mock.patch.object(browser_runtime.sys, "platform", "darwin"),
+            mock.patch("subprocess.run", side_effect=responses),
+        ):
+            assert browser_runtime._detect_webapp_screen_origin() == (1440, 0)
+
 
 def test_submit_browser_profile_dir_with_worker_id(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))

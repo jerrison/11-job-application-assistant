@@ -9,12 +9,17 @@ import os
 import sqlite3
 from collections.abc import Mapping
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypedDict
 from urllib.parse import urlparse, urlunparse
 
+from project_env import load_project_env
+from saved_portal_auth import fetch_security_code_from_gmail, open_saved_portal_login
 from saved_portal_browser import saved_portal_browser_session
 from saved_portal_import import AuthRequiredError, import_saved_portal_jobs
+
+load_project_env()
 
 log = logging.getLogger(__name__)
 
@@ -65,12 +70,37 @@ def _is_external_url(url: str | None) -> bool:
     return bool(normalized and not _is_trueup_url(normalized))
 
 
-def _ensure_trueup_logged_in(page) -> None:
-    current_url = str(page.url or "")
-    lower_url = current_url.lower()
-    if "/sign-in" in lower_url:
-        raise AuthRequiredError("TrueUp session expired (redirected to sign-in)")
+def _trueup_credentials() -> tuple[str, str] | None:
+    email = os.environ.get("TRUEUP_EMAIL", "").strip() or os.environ.get("JOB_ASSETS_LOGIN_EMAIL", "").strip()
+    password = os.environ.get("TRUEUP_PASSWORD", "").strip()
+    if not email or not password:
+        return None
+    return email, password
 
+
+def _first_locator(locator):
+    first = getattr(locator, "first", None)
+    if callable(first):
+        try:
+            return first()
+        except TypeError:
+            pass
+    if first is not None:
+        return first
+    return locator
+
+
+def _locator_has_match(locator) -> bool:
+    count = getattr(locator, "count", None)
+    if callable(count):
+        try:
+            return count() > 0
+        except Exception:
+            return False
+    return locator is not None
+
+
+def _trueup_page_text(page) -> tuple[str, str, str]:
     title_text = ""
     try:
         title_text = _clean_text(page.title())
@@ -84,18 +114,108 @@ def _ensure_trueup_logged_in(page) -> None:
         body_text = ""
 
     combined = f"{title_text}\n{body_text}".lower()
-    if (
+    return title_text, body_text, combined
+
+
+def _trueup_auth_required(page) -> bool:
+    current_url = str(page.url or "").lower()
+    _title_text, _body_text, combined = _trueup_page_text(page)
+    return "/sign-in" in current_url or (
         "sign in to trueup" in combined
         or "unlock the complete trueup platform" in combined
         or ("create free account" in combined and "trueup" in combined)
-    ):
+    )
+
+
+def _trueup_security_verification_blocked(page) -> bool:
+    _title_text, _body_text, combined = _trueup_page_text(page)
+    return any(marker in combined for marker in ("performing security verification", "just a moment..."))
+
+
+def _fill_single_code_input(code_inputs, code: str) -> None:
+    count = getattr(code_inputs, "count", None)
+    nth = getattr(code_inputs, "nth", None)
+    if callable(count):
+        try:
+            total = count()
+        except Exception:
+            total = 0
+    else:
+        total = 0
+
+    if total > 1 and callable(nth) and len(code) >= total:
+        for index, char in enumerate(code[:total]):
+            code_inputs.nth(index).fill(char)
+        return
+
+    _first_locator(code_inputs).fill(code)
+
+
+def _submit_trueup_security_code(page, *, min_received_at_utc: datetime) -> bool:
+    _title_text, _body_text, combined = _trueup_page_text(page)
+    if "security code" not in combined and "verification code" not in combined:
+        return False
+
+    code_inputs = page.locator(
+        "input[autocomplete='one-time-code'], input[name*='code' i], input[id*='code' i], input[inputmode='numeric']"
+    )
+    if not _locator_has_match(code_inputs):
+        raise AuthRequiredError("TrueUp requested a security code, but no code field was visible")
+
+    code = fetch_security_code_from_gmail(
+        ["trueup", '"security code"'],
+        min_received_at_utc=min_received_at_utc,
+        wait_seconds=120,
+    )
+    if not code:
+        raise AuthRequiredError("TrueUp requested a security code, but no code was found in Gmail")
+
+    _fill_single_code_input(code_inputs, code)
+    submit_button = _first_locator(
+        page.locator("button[type='submit'], button:has-text('Verify'), button:has-text('Continue')")
+    )
+    if _locator_has_match(submit_button):
+        submit_button.click()
+    page.wait_for_timeout(5000)
+    return True
+
+
+def _attempt_trueup_login(page) -> bool:
+    credentials = _trueup_credentials()
+    if credentials is None:
+        return False
+    email, password = credentials
+    issued_at = datetime.now(UTC)
+
+    email_input = page.locator("input[type='email'], input[name='email'], input[autocomplete='email'], input[id*='email' i]")
+    password_input = page.locator("input[type='password'], input[name='password'], input[autocomplete='current-password']")
+    submit_button = page.locator("button[type='submit'], button:has-text('Sign in'), button:has-text('Log in')")
+
+    if not (_locator_has_match(email_input) and _locator_has_match(password_input) and _locator_has_match(submit_button)):
+        return False
+
+    _first_locator(email_input).fill(email)
+    _first_locator(password_input).fill(password)
+    _first_locator(submit_button).click()
+    page.wait_for_timeout(5000)
+
+    if _submit_trueup_security_code(page, min_received_at_utc=issued_at):
+        page.wait_for_timeout(5000)
+
+    current_url = str(page.url or "").lower()
+    if current_url and "/sign-in" not in current_url and not _trueup_security_verification_blocked(page):
+        return True
+
+    return not _trueup_auth_required(page) and not _trueup_security_verification_blocked(page)
+
+
+def _ensure_trueup_logged_in(page) -> None:
+    if _trueup_auth_required(page):
+        if _attempt_trueup_login(page):
+            return
         raise AuthRequiredError("TrueUp authentication required")
 
-    cloudflare_markers = (
-        "performing security verification",
-        "just a moment...",
-    )
-    if any(marker in combined for marker in cloudflare_markers):
+    if _trueup_security_verification_blocked(page):
         raise AuthRequiredError("TrueUp security verification is blocking automation")
 
 
@@ -365,6 +485,15 @@ def _trueup_context():
         purpose="TrueUp saved jobs import",
     ) as browser:
         yield browser
+
+
+def launch_auth_setup() -> None:
+    open_saved_portal_login(
+        profile_dir=_TRUEUP_PROFILE_DIR,
+        lock_file=_TRUEUP_LOCK_FILE,
+        url=MY_JOBS_URL,
+        purpose="TrueUp saved jobs auth setup",
+    )
 
 
 def _scrape_saved_jobs(context) -> list[SavedTrueUpJob]:

@@ -3,6 +3,8 @@ from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import import_trueup_saved
@@ -110,6 +112,26 @@ def test_trueup_context_uses_saved_portal_browser_session(monkeypatch):
             "lock_file": import_trueup_saved._TRUEUP_LOCK_FILE,
             "headless": False,
             "purpose": "TrueUp saved jobs import",
+        }
+    ]
+
+
+def test_launch_auth_setup_opens_trueup_login_with_dedicated_profile(monkeypatch):
+    calls = []
+
+    def fake_open_saved_portal_login(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(import_trueup_saved, "open_saved_portal_login", fake_open_saved_portal_login)
+
+    import_trueup_saved.launch_auth_setup()
+
+    assert calls == [
+        {
+            "profile_dir": import_trueup_saved._TRUEUP_PROFILE_DIR,
+            "lock_file": import_trueup_saved._TRUEUP_LOCK_FILE,
+            "url": import_trueup_saved.MY_JOBS_URL,
+            "purpose": "TrueUp saved jobs auth setup",
         }
     ]
 
@@ -404,3 +426,171 @@ def test_expand_all_saved_jobs_clicks_show_more_until_job_count_stops(monkeypatc
 
     assert final_count == 80
     assert page.show_more_clicks == 3
+
+
+def test_trueup_credentials_fall_back_to_shared_login_email(monkeypatch):
+    monkeypatch.setenv("JOB_ASSETS_LOGIN_EMAIL", "shared@example.test")
+    monkeypatch.delenv("TRUEUP_EMAIL", raising=False)
+    monkeypatch.setenv("TRUEUP_PASSWORD", "secret-password")
+
+    assert import_trueup_saved._trueup_credentials() == ("shared@example.test", "secret-password")
+
+
+def test_ensure_trueup_logged_in_auto_submits_sign_in_form_from_env(monkeypatch):
+    class FakeLocator:
+        def __init__(self):
+            self.filled: list[str] = []
+            self.clicked = 0
+
+        def first(self):
+            return self
+
+        def count(self):
+            return 1
+
+        def fill(self, value):
+            self.filled.append(value)
+
+        def click(self):
+            self.clicked += 1
+
+    class FakePage:
+        def __init__(self):
+            self.url = "https://www.trueup.io/sign-in"
+            self.email = FakeLocator()
+            self.password = FakeLocator()
+            self.submit = FakeLocator()
+
+        def title(self):
+            return "Sign in to TrueUp"
+
+        def locator(self, selector):
+            if selector == "body":
+                return type("BodyLocator", (), {"inner_text": lambda self, timeout=4000: "Sign in to TrueUp"})()
+            if "input" in selector and "password" not in selector:
+                return self.email
+            if "password" in selector:
+                return self.password
+            if "button" in selector:
+                return self.submit
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+        def wait_for_timeout(self, _timeout):
+            self.url = "https://www.trueup.io/myjobs"
+
+    monkeypatch.setenv("JOB_ASSETS_LOGIN_EMAIL", "shared@example.test")
+    monkeypatch.delenv("TRUEUP_EMAIL", raising=False)
+    monkeypatch.setenv("TRUEUP_PASSWORD", "trueup-secret")
+
+    page = FakePage()
+
+    import_trueup_saved._ensure_trueup_logged_in(page)
+
+    assert page.email.filled == ["shared@example.test"]
+    assert page.password.filled == ["trueup-secret"]
+    assert page.submit.clicked == 1
+    assert page.url == "https://www.trueup.io/myjobs"
+
+
+def test_ensure_trueup_logged_in_raises_auth_required_without_credentials(monkeypatch):
+    class FakePage:
+        url = "https://www.trueup.io/sign-in"
+
+        def title(self):
+            return "Sign in to TrueUp"
+
+        def locator(self, selector):
+            if selector == "body":
+                return type("BodyLocator", (), {"inner_text": lambda self, timeout=4000: "Sign in to TrueUp"})()
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+    monkeypatch.delenv("JOB_ASSETS_LOGIN_EMAIL", raising=False)
+    monkeypatch.delenv("TRUEUP_EMAIL", raising=False)
+    monkeypatch.delenv("TRUEUP_PASSWORD", raising=False)
+
+    with pytest.raises(AuthRequiredError, match="TrueUp authentication required"):
+        import_trueup_saved._ensure_trueup_logged_in(FakePage())
+
+
+def test_ensure_trueup_logged_in_fetches_security_code_from_gmail(monkeypatch):
+    class FakeLocator:
+        def __init__(self, *, visible: bool = True, on_click=None):
+            self.visible = visible
+            self.on_click = on_click
+            self.filled: list[str] = []
+            self.clicked = 0
+
+        def first(self):
+            return self
+
+        def count(self):
+            return 1 if self.visible else 0
+
+        def fill(self, value):
+            self.filled.append(value)
+
+        def click(self):
+            self.clicked += 1
+            if self.on_click is not None:
+                self.on_click()
+
+    class FakePage:
+        def __init__(self):
+            self.stage = "login"
+            self.url = "https://www.trueup.io/sign-in"
+            self.email = FakeLocator()
+            self.password = FakeLocator()
+            self.code = FakeLocator()
+            self.submit = FakeLocator(on_click=self._after_login_submit)
+            self.verify = FakeLocator(on_click=self._after_code_submit)
+
+        def _after_login_submit(self):
+            self.stage = "code"
+            self.url = "https://www.trueup.io/security-check"
+
+        def _after_code_submit(self):
+            self.stage = "done"
+            self.url = "https://www.trueup.io/myjobs"
+
+        def title(self):
+            if self.stage == "login":
+                return "Sign in to TrueUp"
+            if self.stage == "code":
+                return "Security Code"
+            return "My Jobs"
+
+        def locator(self, selector):
+            if selector == "body":
+                text = {
+                    "login": "Sign in to TrueUp",
+                    "code": "Enter the security code we emailed you.",
+                    "done": "My Jobs",
+                }[self.stage]
+                return type("BodyLocator", (), {"inner_text": lambda self, timeout=4000, value=text: value})()
+            if "code" in selector or "inputmode" in selector or "one-time-code" in selector:
+                return self.code if self.stage == "code" else FakeLocator(visible=False)
+            if "password" in selector:
+                return self.password if self.stage == "login" else FakeLocator(visible=False)
+            if "input" in selector:
+                return self.email if self.stage == "login" else FakeLocator(visible=False)
+            if "button" in selector:
+                return self.submit if self.stage == "login" else self.verify
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+        def wait_for_timeout(self, _timeout):
+            return None
+
+    monkeypatch.setenv("JOB_ASSETS_LOGIN_EMAIL", "shared@example.test")
+    monkeypatch.delenv("TRUEUP_EMAIL", raising=False)
+    monkeypatch.setenv("TRUEUP_PASSWORD", "trueup-secret")
+    monkeypatch.setattr(import_trueup_saved, "fetch_security_code_from_gmail", lambda *args, **kwargs: "123456")
+
+    page = FakePage()
+
+    import_trueup_saved._ensure_trueup_logged_in(page)
+
+    assert page.email.filled == ["shared@example.test"]
+    assert page.password.filled == ["trueup-secret"]
+    assert page.code.filled == ["123456"]
+    assert page.verify.clicked == 1
+    assert page.url == "https://www.trueup.io/myjobs"

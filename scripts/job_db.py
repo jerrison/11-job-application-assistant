@@ -1043,14 +1043,14 @@ def _find_duplicate_by_company_role(
     exclude_job_id: int | None = None,
     older_than_job_id: int | None = None,
 ) -> dict | None:
-    """Return an existing active job matching company+role normalization, or None."""
+    """Return an existing job matching company+role normalization, or None."""
     if not company or not role_title:
         return None
     normalized_companies = company_match_variants(company)
     normalized_role_title = normalize_role_title(role_title)
     if not normalized_companies or not normalized_role_title:
         return None
-    query = "SELECT * FROM jobs WHERE (archived IS NULL OR archived = FALSE)"
+    query = "SELECT * FROM jobs WHERE 1 = 1"
     params: list[object] = []
     if exclude_job_id is not None:
         query += " AND id != ?"
@@ -1109,7 +1109,7 @@ def _find_locked_output_dir_owner(
 
 
 def _is_duplicate_by_company_role(conn: sqlite3.Connection, company: str, role_title: str) -> int | None:
-    """Return the ID of an existing non-archived job matching company+role, or None."""
+    """Return the ID of an existing job matching company+role, or None."""
     duplicate = _find_duplicate_by_company_role(conn, company, role_title)
     return int(duplicate["id"]) if duplicate is not None else None
 
@@ -1314,14 +1314,14 @@ def add_job(
     if source_url_override is not None:
         source_url = source_url_override
 
-    # ── Dedup: reject if an active job with the same company+role exists ──
+    # ── Dedup: reject if any existing job with the same company+role exists ──
     existing_id = _is_duplicate_by_company_role(conn, company, role_title)
     if existing_id is not None:
         log.info("Duplicate of job #%d (same company+role), skipping", existing_id)
         return -existing_id  # negative ID signals duplicate to callers
 
-    # ── Dedup: reject if an active job with the same URL already exists ──
-    # Check url, board_url, and canonical_url against existing non-archived jobs.
+    # ── Dedup: reject if any existing job with the same URL already exists ──
+    # Check url, board_url, and canonical_url against existing jobs.
     for col, check_val in {
         "url": url,
         "board_url": board_url,
@@ -1330,7 +1330,7 @@ def add_job(
         if not check_val:
             continue
         existing = conn.execute(
-            f"SELECT id FROM jobs WHERE {col} = ? AND (archived IS NULL OR archived = FALSE) LIMIT 1",
+            f"SELECT id FROM jobs WHERE {col} = ? LIMIT 1",
             (check_val,),
         ).fetchone()
         if existing:

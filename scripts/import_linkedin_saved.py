@@ -14,8 +14,12 @@ import sqlite3
 from pathlib import Path
 from typing import TypedDict
 
+from project_env import load_project_env
+from saved_portal_auth import open_saved_portal_login
 from saved_portal_browser import saved_portal_browser_session
-from saved_portal_import import import_saved_portal_jobs
+from saved_portal_import import AuthRequiredError, import_saved_portal_jobs
+
+load_project_env()
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +35,17 @@ class SavedLinkedInJob(TypedDict):
     url: str
     company: str | None
     role_title: str | None
+
+
+def launch_auth_setup() -> None:
+    open_saved_portal_login(
+        profile_dir=_LINKEDIN_PROFILE_DIR,
+        lock_file=_LINKEDIN_LOCK_FILE,
+        url=SAVED_JOBS_URL,
+        purpose="LinkedIn saved jobs auth setup",
+        normalize_zoom_hosts=("linkedin.com", "www.linkedin.com"),
+        reset_default_zoom=True,
+    )
 
 
 def _sanitize_saved_company(company: str | None) -> str | None:
@@ -148,8 +163,7 @@ def _scrape_saved_jobs(max_pages: int = 200) -> list[SavedLinkedInJob]:
             from url_resolver import _ensure_linkedin_logged_in
 
             if not _ensure_linkedin_logged_in(page):
-                log.error("LinkedIn login failed — run linkedin_login_interactive() first")
-                return []
+                raise AuthRequiredError("LinkedIn authentication required")
             page.goto(SAVED_JOBS_URL, wait_until="domcontentloaded", timeout=30000)
 
         # Wait for job cards to render
@@ -184,10 +198,11 @@ def _scrape_saved_jobs(max_pages: int = 200) -> list[SavedLinkedInJob]:
     return all_jobs
 
 
-def _get_active_job_by_url(conn: sqlite3.Connection, url: str) -> dict | None:
+def _get_existing_job_by_url(conn: sqlite3.Connection, url: str) -> dict | None:
     for col in ("url", "source_url", "board_url", "canonical_url"):
         row = conn.execute(
-            f"SELECT * FROM jobs WHERE {col} = ? AND (archived IS NULL OR archived = FALSE) LIMIT 1",
+            f"SELECT * FROM jobs WHERE {col} = ? "
+            "ORDER BY CASE WHEN status = 'submitted' THEN 0 ELSE 1 END, id ASC LIMIT 1",
             (url,),
         ).fetchone()
         if row:
@@ -252,7 +267,7 @@ def import_saved_jobs(
         if existing_id is not None:
             existing_job = get_job(callback_conn, existing_id)
         else:
-            existing_job = _get_active_job_by_url(callback_conn, str(resolved["url"]))
+            existing_job = _get_existing_job_by_url(callback_conn, str(resolved["url"]))
 
         if existing_job and existing_job.get("status") == "submitted":
             marked, hidden = _mark_and_hide_linkedin_job(str(resolved["source_url"]))

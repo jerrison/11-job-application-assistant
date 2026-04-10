@@ -1,10 +1,14 @@
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import import_linkedin_saved
+import saved_portal_import
 from import_linkedin_saved import import_saved_jobs
 from job_db import add_job, init_db, update_status
 
@@ -111,6 +115,33 @@ def test_import_saved_jobs_syncs_submitted_exact_url_duplicate_without_metadata(
         assert conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 1
 
 
+def test_import_saved_jobs_syncs_archived_submitted_exact_url_duplicate_without_metadata(tmp_path):
+    for conn in _open_db(tmp_path):
+        linkedin_url = "https://www.linkedin.com/jobs/view/34568"
+        existing_id = add_job(conn, url=linkedin_url)
+        update_status(conn, existing_id, "submitted", board="greenhouse")
+        conn.execute("UPDATE jobs SET archived = TRUE WHERE id = ?", (existing_id,))
+        conn.commit()
+
+        with (
+            patch(
+                "import_linkedin_saved._scrape_saved_jobs",
+                return_value=[{"url": linkedin_url, "company": None, "role_title": None}],
+            ),
+            patch("import_linkedin_saved._mark_and_hide_linkedin_job", return_value=(True, True)) as sync_linkedin,
+        ):
+            result = import_saved_jobs(conn)
+
+        assert result["scraped"] == 1
+        assert result["added"] == 0
+        assert result["duplicates"] == 1
+        assert result["errors"] == 0
+        assert result["linkedin_marked"] == 1
+        assert result["linkedin_hidden"] == 1
+        sync_linkedin.assert_called_once_with(linkedin_url)
+        assert conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 1
+
+
 def test_import_saved_jobs_returns_shared_result_fields(tmp_path):
     for conn in _open_db(tmp_path):
         linkedin_url = "https://www.linkedin.com/jobs/view/45678"
@@ -151,8 +182,6 @@ def test_resolve_saved_job_drops_location_label_company():
 
 
 def test_scrape_saved_jobs_uses_saved_portal_browser_session(monkeypatch):
-    from contextlib import contextmanager
-
     linkedin_url = "https://www.linkedin.com/jobs/view/98765"
 
     class FakePage:
@@ -206,3 +235,41 @@ def test_scrape_saved_jobs_uses_saved_portal_browser_session(monkeypatch):
             "reset_default_zoom": True,
         }
     ]
+
+
+def test_scrape_saved_jobs_raises_auth_required_when_linkedin_login_is_unavailable(monkeypatch):
+    import url_resolver
+
+    class FakePage:
+        def __init__(self):
+            self.url = "about:blank"
+            self.goto_calls = []
+
+        def goto(self, url, **_kwargs):
+            self.goto_calls.append(url)
+            self.url = "https://www.linkedin.com/authwall?trk=guest_homepage"
+
+        def wait_for_timeout(self, _timeout):
+            return None
+
+        def query_selector(self, _selector):
+            return None
+
+    class FakeBrowser:
+        def __init__(self, page):
+            self.page = page
+
+        def new_page(self):
+            return self.page
+
+    fake_page = FakePage()
+
+    @contextmanager
+    def fake_saved_portal_browser_session(**_kwargs):
+        yield FakeBrowser(fake_page)
+
+    monkeypatch.setattr(import_linkedin_saved, "saved_portal_browser_session", fake_saved_portal_browser_session)
+    monkeypatch.setattr(url_resolver, "_ensure_linkedin_logged_in", lambda _page: False)
+
+    with pytest.raises(saved_portal_import.AuthRequiredError, match="LinkedIn authentication required"):
+        import_linkedin_saved._scrape_saved_jobs(max_pages=1)

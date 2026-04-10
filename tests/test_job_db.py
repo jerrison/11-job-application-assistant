@@ -3470,8 +3470,8 @@ def test_add_job_different_roles_same_company_not_duplicate(db):
     assert id2 != -id1
 
 
-def test_add_job_archived_jobs_dont_block_reimport(db):
-    """Archived jobs don't block new imports of the same position."""
+def test_add_job_archived_jobs_block_reimport(db):
+    """Archived jobs still block re-imports of the same position."""
     id1 = add_job(
         db,
         url="https://boards.greenhouse.io/acme/jobs/400",
@@ -3481,14 +3481,23 @@ def test_add_job_archived_jobs_dont_block_reimport(db):
     # Archive the job
     db.execute("UPDATE jobs SET archived = TRUE WHERE id = ?", (id1,))
     db.commit()
-    # Re-importing the same company+role should succeed (new URL)
+    # Re-importing the same company+role should be treated as a duplicate.
     id2 = add_job(
         db,
         url="https://boards.greenhouse.io/acme/jobs/401",
         company="Acme",
         role_title="Staff Engineer",
     )
-    assert id2 > 0  # new job created, not a duplicate
+    assert id2 == -id1
+
+
+def test_add_job_archived_url_duplicate_blocks_reimport(db):
+    job_id = add_job(db, url="https://boards.greenhouse.io/acme/jobs/402")
+    db.execute("UPDATE jobs SET archived = TRUE WHERE id = ?", (job_id,))
+    db.commit()
+
+    with pytest.raises(sqlite3.IntegrityError, match="same url"):
+        add_job(db, url="https://boards.greenhouse.io/acme/jobs/402")
 
 
 def test_add_job_null_company_no_false_match(db):

@@ -58,6 +58,7 @@ _STATUS_RE = re.compile(r"\*\*Status:\*\*\s*(\S+)")
 _LINKED_RESOURCE_RE = re.compile(r"\*\*Linked Resource:\*\*\s*(.*)")
 _SECTION_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 _DETAIL_LINE_RE = re.compile(r"^- \*\*([^:]+):\*\*\s*(.*)$", re.MULTILINE)
+_DETAIL_BLOCK_STOP_RE = re.compile(r"^(?:##\s+|###\s+|- \*\*[^:]+:\*\*)")
 
 
 def _extract_section(text: str, heading: str) -> str | None:
@@ -118,6 +119,32 @@ def _parse_answer_refresh(text: str) -> dict | None:
     return refresh
 
 
+def _extract_detail_block(block: str, label: str) -> str | None:
+    prefix = f"- **{label}:**"
+    values: list[str] = []
+    capture = False
+
+    for line in block.splitlines():
+        if not capture:
+            if line.startswith(prefix):
+                capture = True
+                values.append(line[len(prefix) :].strip())
+            continue
+
+        if _DETAIL_BLOCK_STOP_RE.match(line):
+            break
+        values.append(line.strip())
+
+    if not capture:
+        return None
+
+    while values and not values[-1]:
+        values.pop()
+
+    value = "\n".join(values).strip()
+    return value or None
+
+
 def _parse_md(text: str) -> dict:
     """Parse draft_summary.md into structured data."""
     result: dict = {
@@ -163,16 +190,16 @@ def _parse_md(text: str) -> dict:
             field["kind"] = km.group(1)
             field["required"] = km.group(2)
 
-        am = _ANSWER_RE.search(block)
-        if am:
-            field["answer"] = am.group(1).strip() or "\u2014"
+        answer = _extract_detail_block(block, "Answer")
+        if answer is not None:
+            field["answer"] = answer
 
         sm = _STATUS_RE.search(block)
         if sm:
             field["status"] = sm.group(1)
-        lm = _LINKED_RESOURCE_RE.search(block)
-        if lm:
-            field["linked_resource"] = lm.group(1).strip() or None
+        linked_resource = _extract_detail_block(block, "Linked Resource")
+        if linked_resource is not None:
+            field["linked_resource"] = linked_resource
 
         result["fields"].append(field)
 

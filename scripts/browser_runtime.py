@@ -420,7 +420,11 @@ def ensure_google_session(page, *, headless: bool = False) -> None:
         except Exception:
             continue
         # Re-check via the current URL / page content
-        if "SignOutOptions" in body or "data-email" in (page.content() or ""):
+        try:
+            page_content = page.content() or ""
+        except Exception:
+            page_content = ""
+        if "SignOutOptions" in body or "data-email" in page_content:
             break
     else:
         print("WARNING: Timed out waiting for Google sign-in (5 min). Continuing anyway.")
@@ -531,9 +535,17 @@ def focus_chromium_window(*, title_substring: str = "[Captcha]") -> bool:
     target_window = "first window"
     if title_substring:
         target_window = f'first window whose name contains {json.dumps(title_substring)}'
+    target_process = (
+        'first process whose (name is "Google Chrome" '
+        'or name is "Google Chrome for Testing" '
+        'or name is "Chromium" '
+        'or name is "Microsoft Edge")'
+    )
     return _run_osascript(
         """tell application "System Events"
-            tell (first process whose name contains "Chrom")
+            tell ("""
+        + target_process
+        + """)
                 set frontmost to true
                 set targetWindow to """
         + target_window

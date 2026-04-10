@@ -4,7 +4,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from url_resolver import _extract_linkedin_job_id, _resolve_company_url_to_board, detect_source, resolve_to_board_url
+from url_resolver import (
+    _ensure_linkedin_logged_in,
+    _extract_linkedin_job_id,
+    _resolve_company_url_to_board,
+    detect_source,
+    resolve_to_board_url,
+)
 
 
 def test_detect_linkedin():
@@ -106,6 +112,59 @@ def test_extract_linkedin_job_id_from_view_path():
 
 def test_extract_linkedin_job_id_from_current_job_id_query():
     assert _extract_linkedin_job_id("https://www.linkedin.com/jobs/search/?currentJobId=67890") == "67890"
+
+
+def test_ensure_linkedin_logged_in_falls_back_to_shared_login_email(monkeypatch):
+    class FakeLocator:
+        def __init__(self):
+            self.filled: list[str] = []
+            self.clicked = 0
+
+        @property
+        def first(self):
+            return self
+
+        def count(self):
+            return 1
+
+        def fill(self, value):
+            self.filled.append(value)
+
+        def click(self):
+            self.clicked += 1
+
+    class FakePage:
+        def __init__(self):
+            self.url = "https://www.linkedin.com/login"
+            self.email = FakeLocator()
+            self.password = FakeLocator()
+            self.submit = FakeLocator()
+
+        def goto(self, url, **_kwargs):
+            self.url = url
+
+        def wait_for_timeout(self, _timeout):
+            self.url = "https://www.linkedin.com/feed/"
+
+        def locator(self, selector):
+            if "session_key" in selector or "#username" in selector:
+                return self.email
+            if "session_password" in selector or "#password" in selector:
+                return self.password
+            if "button" in selector:
+                return self.submit
+            raise AssertionError(f"Unexpected selector: {selector}")
+
+    monkeypatch.setenv("JOB_ASSETS_LOGIN_EMAIL", "shared@example.test")
+    monkeypatch.delenv("LINKEDIN_EMAIL", raising=False)
+    monkeypatch.setenv("LINKEDIN_PASSWORD", "linkedin-secret")
+
+    page = FakePage()
+
+    assert _ensure_linkedin_logged_in(page) is True
+    assert page.email.filled == ["shared@example.test"]
+    assert page.password.filled == ["linkedin-secret"]
+    assert page.submit.clicked == 1
 
 
 def test_resolve_to_board_url_returns_redirected_jobish_url_for_easyapply():

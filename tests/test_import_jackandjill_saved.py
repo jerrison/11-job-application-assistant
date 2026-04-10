@@ -87,6 +87,26 @@ def test_import_saved_jobs_returns_auth_required_when_session_is_invalid(tmp_pat
         assert result["added"] == 0
 
 
+def test_launch_auth_setup_opens_jackandjill_login_with_dedicated_profile(monkeypatch):
+    calls = []
+
+    def fake_open_saved_portal_login(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(import_jackandjill_saved, "open_saved_portal_login", fake_open_saved_portal_login)
+
+    import_jackandjill_saved.launch_auth_setup()
+
+    assert calls == [
+        {
+            "profile_dir": import_jackandjill_saved._JACKANDJILL_PROFILE_DIR,
+            "lock_file": import_jackandjill_saved._JACKANDJILL_LOCK_FILE,
+            "url": import_jackandjill_saved.OPPORTUNITIES_URL,
+            "purpose": "Jack & Jill saved jobs auth setup",
+        }
+    ]
+
+
 class _FakePage:
     def __init__(self):
         self.url = "about:blank"

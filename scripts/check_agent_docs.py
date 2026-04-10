@@ -50,8 +50,11 @@ PLAN_TEMPLATE_SECTIONS = (
 # Matches markdown links: [text](path) — captures the text and path
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
-# Matches fenced code blocks (``` ... ```) to exclude from link scanning
-FENCED_CODE_RE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
+# Matches fenced code blocks (``` ... ``` or ~~~ ... ~~~) to exclude from link scanning
+FENCED_CODE_RE = re.compile(
+    r"^(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^(?P=fence)\s*$",
+    re.MULTILINE | re.DOTALL,
+)
 
 # Matches inline code spans that wrap an entire markdown link — e.g. `[text](path)`
 # These are code examples, not actual links

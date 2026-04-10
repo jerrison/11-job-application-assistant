@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -255,3 +256,13 @@ def test_saved_portal_registry_lists_and_loads_specs():
 
     module = saved_portal_import.load_saved_portal_module("jackandjill")
     assert hasattr(module, "import_saved_jobs")
+
+
+def test_launch_saved_portal_auth_setup_dispatches_to_module_launcher():
+    fake_module = mock.Mock()
+
+    with mock.patch("saved_portal_import.load_saved_portal_module", return_value=fake_module) as load_module:
+        saved_portal_import.launch_saved_portal_auth_setup("trueup")
+
+    load_module.assert_called_once_with("trueup")
+    fake_module.launch_auth_setup.assert_called_once_with()

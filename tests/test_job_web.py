@@ -742,6 +742,23 @@ def test_import_saved_portal_endpoint_rejects_unknown_portal(client):
     assert resp.status_code == 404
 
 
+def test_saved_portal_auth_setup_endpoint_dispatches_and_returns_result(client):
+    import job_web
+
+    expected = {
+        "status": "launched",
+        "portal": "trueup",
+        "message": "Opened TrueUp sign-in window. Sign in, close the browser, then retry import.",
+    }
+
+    with mock.patch.object(job_web, "_launch_saved_portal_auth_setup", return_value=expected) as launch_auth_setup:
+        resp = client.post("/api/jobs/import/trueup/auth")
+
+    assert resp.status_code == 200
+    assert resp.json() == expected
+    launch_auth_setup.assert_called_once_with("trueup")
+
+
 def test_import_saved_portal_jobs_uses_shared_registry_module_loader(client):
     import job_web
 
@@ -795,6 +812,24 @@ def test_app_js_exposes_generic_saved_portal_lookup_for_jackandjill(client):
     assert "buttonId: 'jackandjill-import-btn'" in resp.text
     assert "addButtonId: 'add-jackandjill-import-btn'" in resp.text
     assert "Unknown saved portal UI config" in resp.text
+
+
+def test_app_js_offers_saved_portal_auth_setup_after_auth_required_import(client):
+    resp = client.get("/static/app.js")
+
+    assert resp.status_code == 200
+    assert "async function openSavedPortalAuthSetup(portal)" in resp.text
+    assert "await apiCall('POST', `/api/jobs/import/${encodeURIComponent(portal)}/auth`)" in resp.text
+    assert "result?.status === 'auth_required'" in resp.text
+    assert "Open the ${label} sign-in window now?" in resp.text
+
+
+def test_app_js_saved_portal_import_copy_mentions_multi_minute_runtime(client):
+    resp = client.get("/static/app.js")
+
+    assert resp.status_code == 200
+    assert "this may take several minutes for large saved lists" in resp.text
+    assert "this may take a minute" not in resp.text
 
 
 def test_saved_portal_ui_stays_in_sync_with_registry(client):
